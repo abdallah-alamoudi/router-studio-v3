@@ -1,0 +1,43 @@
+<UserControl x:Class="RouterStudio.Desktop.Views.DashboardView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <StackPanel>
+  <TextBlock Text="Your router, at a glance" Style="{StaticResource PageHeading}"/>
+  <TextBlock Text="Local checks refresh every 15 seconds while this page is visible and idle. No upstream requests." Style="{StaticResource Subtitle}"/>
+  <Border Style="{StaticResource Card}" Visibility="{Binding Dashboard.State.StatusOutdated,Converter={StaticResource BoolVisibility}}"><TextBlock Text="! Local status is out of date. Values below describe the last successful read. Refresh before changing connections." TextWrapping="Wrap"/></Border>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="Configured connection" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+   <TextBlock Text="{Binding Dashboard.State.ConfiguredProvider}" FontSize="22" FontWeight="SemiBold"/>
+   <TextBlock Text="Configured model" Foreground="{DynamicResource MutedBrush}" Margin="0,16,0,4"/>
+   <TextBlock x:Name="ConfiguredModel" Text="{Binding Dashboard.State.ConfiguredModel}" TextWrapping="Wrap"/>
+   <WrapPanel Margin="0,16,0,8"><TextBlock Text="Authentication: " FontWeight="SemiBold"/><TextBlock x:Name="AuthenticationState" Text="{Binding Dashboard.State.AuthenticationState}"/></WrapPanel>
+   <TextBlock Text="Configured settings do not prove sign-in or which settings an existing Codex session loaded. Account access and quotas are managed through official sign-in." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/>
+  </StackPanel></Border>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="Local router &amp; configuration" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+   <WrapPanel Margin="0,0,0,8"><TextBlock Text="Router: " FontWeight="SemiBold"/><TextBlock Text="{Binding Dashboard.State.RouterState}"/></WrapPanel>
+   <TextBlock Text="{Binding Dashboard.State.RouterConfigurationState}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+   <WrapPanel Margin="0,0,0,8"><TextBlock Text="Configuration review: " FontWeight="SemiBold"/><TextBlock Text="{Binding Dashboard.State.ReviewState}"/></WrapPanel>
+   <TextBlock Text="Router reachability is separate from subscription or upstream model access. If review is needed, open Diagnostics and use the existing management window to resolve it." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/>
+   <WrapPanel Margin="0,16,0,0"><TextBlock Text="Last local check: "/><TextBlock Text="{Binding Dashboard.State.CheckedAt}"/></WrapPanel>
+  </StackPanel></Border>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="Models &amp; saved routes" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+   <WrapPanel><TextBlock Text="Catalog: "/><TextBlock Text="{Binding Dashboard.State.CatalogState}"/></WrapPanel>
+   <WrapPanel Margin="0,8,0,8" Visibility="{Binding Dashboard.State.CountsAvailable,Converter={StaticResource BoolVisibility}}">
+    <StackPanel Margin="0,0,32,8"><TextBlock Text="{Binding Dashboard.State.ModelCount}" FontSize="24"/><TextBlock Text="Catalog models"/></StackPanel>
+    <StackPanel Margin="0,0,32,8"><TextBlock Text="{Binding Dashboard.State.RouteCount}" FontSize="24"/><TextBlock Text="Explicit catalog routes"/></StackPanel>
+    <StackPanel Margin="0,0,32,8"><TextBlock Text="{Binding Dashboard.State.CredentialCount}" FontSize="24"/><TextBlock Text="Saved key labels"/></StackPanel>
+    <StackPanel Margin="0,0,0,8"><TextBlock Text="{Binding Dashboard.State.MissingCredentialCount}" FontSize="24"/><TextBlock Text="Models missing a saved key"/></StackPanel>
+   </WrapPanel>
+   <TextBlock Text="Explicit routes include presets and mapped catalog models. Other raw models use the default key. Saved keys do not prove gateway permissions." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/>
+  </StackPanel></Border>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="Latest test &amp; local runtimes" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+   <WrapPanel><TextBlock Text="Latest test: "/><TextBlock Text="{Binding Dashboard.State.LastProbeState}" FontWeight="SemiBold"/></WrapPanel>
+   <TextBlock Text="{Binding Dashboard.State.LastProbeTime}" Margin="0,4,0,8"/>
+   <TextBlock Text="Test Lab runs only after your preview and acknowledgement. Changed files or an unsuccessful refresh invalidate earlier results." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,16"/>
+   <WrapPanel Margin="0,0,0,8"><TextBlock Text="Node.js: "/><TextBlock Text="{Binding Dashboard.State.NodeVersion}"/></WrapPanel>
+   <WrapPanel><TextBlock Text="PowerShell: "/><TextBlock Text="{Binding Dashboard.State.PowerShellVersion}"/></WrapPanel>
+  </StackPanel></Border>
+  <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Recent local activity" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/><TextBlock Text="{Binding ActivityText}" TextWrapping="Wrap"/><TextBlock Text="{Binding HistoryNotice}" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" Margin="0,8,0,0"/></StackPanel></Border>
+ </StackPanel>
+</UserControl>

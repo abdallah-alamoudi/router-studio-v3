@@ -1,0 +1,18 @@
+<UserControl x:Class="RouterStudio.Desktop.Views.BackupsView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <StackPanel>
+  <TextBlock Text="Configuration backups" Style="{StaticResource PageHeading}"/>
+  <TextBlock Text="Preview before restoring. A restore replaces the entire Codex configuration, including unrelated settings from that backup. Keys and model catalogs stay unchanged." Style="{StaticResource Subtitle}"/>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <ListBox x:Name="BackupsList" ItemsSource="{Binding Backups.Items}" SelectedItem="{Binding Backups.SelectedBackup}" IsEnabled="{Binding StatusAvailable}" MaxHeight="280" AutomationProperties.Name="Configuration backups">
+    <ListBox.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding Id}" TextWrapping="Wrap" FontWeight="SemiBold"/><TextBlock Text="{Binding Date}" Margin="0,4,0,0"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
+   </ListBox>
+   <Button x:Name="PreviewBackupButton" Content="_Preview selected backup" IsEnabled="{Binding Backups.CanPreview}" HorizontalAlignment="Left" Click="PreviewBackup" Margin="0,16,0,0"/>
+  </StackPanel></Border>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="Sanitized configuration changes" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+   <TextBlock Text="{Binding Backups.PreviewText}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+   <TextBlock Text="Authentication, header and arbitrary TOML values are hidden. Current configuration and selected backup must still match the preview. Save your work and close Codex before confirming." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,16"/>
+   <Button x:Name="RestoreBackupButton" Content="Review and _restore backup" IsEnabled="{Binding Backups.CanRestore}" HorizontalAlignment="Left" Click="RestoreBackup"/>
+  </StackPanel></Border>
+ </StackPanel>
+</UserControl>

@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a reproducible problem in Router Studio
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include API keys, account data, Codex configuration, or other secrets. Redact logs before attaching them.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: 1. Open... 2. Select... 3. Observe...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Router Studio version or commit
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Windows, .NET SDK, and Node.js versions
+    validations:
+      required: false

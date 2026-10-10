@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><OutputType>WinExe</OutputType><UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms><AssemblyName>RouterStudio.Desktop</AssemblyName><RuntimeIdentifiers>win-x64</RuntimeIdentifiers></PropertyGroup>
+ <ItemGroup><Using Remove="System.Windows.Forms"/><Using Remove="System.Drawing"/></ItemGroup>
+ <ItemGroup><ProjectReference Include="../RouterStudio.Core/RouterStudio.Core.csproj"/></ItemGroup>
+</Project>

@@ -1,0 +1,22 @@
+ROUTER STUDIO v3 — VALIDATION
+
+Node suite: 55 tests passed, 0 failures.
+PowerShell worker: 13 integration assertions passed.
+All shipped PowerShell files passed the PowerShell 7.6.6 parser.
+Embedded WPF XAML passed XML well-formedness and unique-control-name checks.
+Code review found no critical or important issue in the inspected changes.
+The forwarding engine router.mjs is byte-identical to v2.3.
+
+Test environment: Linux, Node.js 24.19.0, PowerShell 7.6.6.
+Only fake test credentials and local HTTP fixtures were used.
+No paid upstream generation tests were performed.
+
+WINDOWS ACCEPTANCE TESTS STILL REQUIRED:
+- Native WPF loading, rendering, window resizing, navigation and forms.
+- Windows DPAPI encryption/decryption under the current Windows user.
+- ACL setup, desktop shortcut creation and hidden PowerShell launch.
+- Actual owned-router restart when applying keys.
+- User's current installation and provider migration on their machine.
+- Upstream Responses support, key group permissions and account access.
+
+DO NOT INTERPRET THE AUTOMATED TESTS AS A GUARANTEE OF ZERO BUGS.

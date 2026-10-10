@@ -1,0 +1,15 @@
+{
+  "name": "router-studio",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Windows desktop control panel and local router for Codex-compatible workflows",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "start": "node src/router/router.mjs"
+  }
+}

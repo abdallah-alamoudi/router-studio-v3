@@ -1,0 +1,2 @@
+# Keep source, documentation, and configuration line endings consistent across platforms.
+* text=auto eol=lf

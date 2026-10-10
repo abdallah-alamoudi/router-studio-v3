@@ -1,0 +1,24 @@
+# Local tools, build output, and generated release packages
+/.tools/
+/artifacts/
+**/bin/
+**/obj/
+/TestResults/
+**/TestResults/
+/node_modules/
+/coverage/
+
+# Deprecated local legacy files (not used by current source/package)
+/app/legacy/
+
+# Local Codex workspace notes (not project source)
+/AGENTS.md
+/PROJECT_STATE.md
+/.tmp-refs.txt
+/docs/superpowers/
+
+# IDE/user-specific state
+/.vs/
+/.vscode/
+*.user
+*.suo

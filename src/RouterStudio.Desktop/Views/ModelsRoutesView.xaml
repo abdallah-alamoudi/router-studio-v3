@@ -1,0 +1,19 @@
+<UserControl x:Class="RouterStudio.Desktop.Views.ModelsRoutesView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <StackPanel>
+  <TextBlock Text="Models &amp; routes" Style="{StaticResource PageHeading}"/>
+  <TextBlock Text="Read catalog declarations and see which saved key label each route uses. Upstream access remains untested." Style="{StaticResource Subtitle}"/>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="Search model ID, name or credential label" Margin="0,0,0,8"/>
+   <TextBox x:Name="ModelSearch" Text="{Binding ModelsRoutes.Search,UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search models" Margin="0,0,0,16"/>
+   <ComboBox x:Name="ModelFilter" ItemsSource="{Binding ModelsRoutes.Filters}" SelectedItem="{Binding ModelsRoutes.Filter}" AutomationProperties.Name="Model filter" HorizontalAlignment="Left" MinWidth="160" Margin="0,0,0,16"/>
+   <ListBox x:Name="ModelsList" ItemsSource="{Binding ModelsRoutes.FilteredModels}" SelectedItem="{Binding ModelsRoutes.SelectedModel}" MaxHeight="320" AutomationProperties.Name="Catalog models">
+    <ListBox.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding Id}" FontWeight="SemiBold" TextWrapping="Wrap"/><WrapPanel Margin="0,4,0,0"><TextBlock Text="{Binding Kind}" Margin="0,0,16,0"/><TextBlock Text="{Binding Credential}" Margin="0,0,16,0"/><TextBlock Text="{Binding KeyStatus}"/></WrapPanel></StackPanel></DataTemplate></ListBox.ItemTemplate>
+   </ListBox>
+  </StackPanel></Border>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="Selected model" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+   <TextBlock Text="{Binding ModelsRoutes.Details}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+   <Button Content="Manage _keys and route assignments" HorizontalAlignment="Left" Click="OpenKeys"/>
+  </StackPanel></Border>
+ </StackPanel>
+</UserControl>

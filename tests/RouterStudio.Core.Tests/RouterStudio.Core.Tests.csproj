@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <MSTestEnableMicrosoftTestingPlatform>false</MSTestEnableMicrosoftTestingPlatform>
+    <MSTestEnableVSTestRunner>true</MSTestEnableVSTestRunner>
+    <MSTestParallelizeScope>None</MSTestParallelizeScope>
+    <EnableMSTestRunner>false</EnableMSTestRunner>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1"/>
+    <PackageReference Include="MSTest.TestFramework" Version="4.4.1"/>
+    <PackageReference Include="MSTest.TestAdapter" Version="4.4.1"/>
+    <ProjectReference Include="../../src/RouterStudio.Core/RouterStudio.Core.csproj"/>
+  </ItemGroup>
+  <ItemGroup><None Include="Fixtures/*.ps1" CopyToOutputDirectory="PreserveNewest"/></ItemGroup>
+<ItemGroup><Compile Include="../../src/RouterStudio.Desktop/Presentation/*.cs" Link="Presentation/%(Filename)%(Extension)"/></ItemGroup></Project>

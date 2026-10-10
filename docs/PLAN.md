@@ -1,0 +1,11 @@
+# Implementation contract
+Approved scope: a local credential/preset switch in front of 8stoken, preserving Responses API semantics and raw models. No cheap mode or protocol conversion.
+
+1. Test HTTP behavior with a local upstream: exact unknown-field preservation, reasoning-only replacement, raw binary endpoints, SSE events, errors, cancellation, headers, authorization and redirects.
+2. Implement a Node 22+ proxy using built-in HTTP APIs. Bind only 127.0.0.1; require a local token; accept only origin-form paths; never follow redirects. Proxy any path to one fixed HTTPS origin. Reject unsupported WebSocket upgrades explicitly. No automatic replay, including on 429/5xx or connection errors. Preserve response bytes and status; remove hop-by-hop headers and recalculate framing as required by HTTP.
+3. For JSON aliases, modify only top-level model and reasoning.effort using text spans; leave all other text, numeric precision, whitespace and unknown fields intact. Reject duplicate JSON keys and encoded alias requests rather than silently corrupting them. Raw models pass through. No alias processing for compressed requests: reject these rather than forwarding unresolved aliases.
+4. Build a conservative catalog/config adapter: clone complete existing model metadata for aliases; keep every original entry; enforce preset-supported efforts. Preserve original catalog. Only modify the existing active custom provider's base_url/env_key/requires_openai_auth and top-level catalog pointer. Reject unsupported TOML layouts. Never replace the model setting or kill Codex processes.
+5. Package Windows setup, per-user startup, DPAPI secrets, status and rollback. Installation backs up config, validates before edits, starts the proxy, checks local health, then connects Codex. Rollback refuses to overwrite newer config edits. No paid API requests in setup/tests.
+6. Run full suite, syntax checks and archive validation. Live upstream capability and Desktop UI tests remain pending until executed on the user's Windows PC with their keys.
+
+Transport boundary: HTTP/1.1 upstream; HTTP/SSE response bodies pass through with backpressure. WebSocket, HTTP/2-only behavior and remote session-state portability are not promised. Alias responses retain the upstream real-model name. Group quality and real-model identity cannot be established by this proxy.

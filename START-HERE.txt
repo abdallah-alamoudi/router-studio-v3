@@ -1,0 +1,7 @@
+ROUTER STUDIO — START HERE
+
+This repository is source-only. No downloadable binary release is currently published.
+
+For Windows prerequisites, source build/preview instructions, and test commands, start with README.md. Do not run Install-Desktop.cmd from a source checkout; it is intended for a complete, prepared release package.
+
+When a packaged preview is published, download the complete ZIP from the repository's GitHub Releases page, extract the whole archive, then follow docs/DESKTOP-INSTALLATION.md and docs/USER-GUIDE.md.

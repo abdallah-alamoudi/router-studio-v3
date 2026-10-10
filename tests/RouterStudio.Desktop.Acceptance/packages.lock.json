@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows7.0": {
+      "routerstudio.core": {
+        "type": "Project"
+      },
+      "routerstudio.desktop": {
+        "type": "Project",
+        "dependencies": {
+          "RouterStudio.Core": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+<UserControl x:Class="RouterStudio.Desktop.Views.TestLabView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<UserControl.Resources>
+ <Style x:Key="ValidCapButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+  <Style.Triggers><MultiDataTrigger><MultiDataTrigger.Conditions>
+   <Condition Binding="{Binding TestLab.NeedsModel}" Value="True"/>
+   <Condition Binding="{Binding ElementName=OutputLimit,Path=(Validation.HasError)}" Value="True"/>
+  </MultiDataTrigger.Conditions><Setter Property="IsEnabled" Value="False"/></MultiDataTrigger></Style.Triggers>
+ </Style>
+ <Style x:Key="PreviewCapButton" TargetType="Button" BasedOn="{StaticResource ValidCapButton}"><Setter Property="IsEnabled" Value="{Binding TestLab.CanPreview}"/></Style>
+ <Style x:Key="RunCapButton" TargetType="Button" BasedOn="{StaticResource ValidCapButton}"><Setter Property="IsEnabled" Value="{Binding TestLab.CanRun}"/></Style>
+</UserControl.Resources>
+<StackPanel>
+ <TextBlock Text="Test Lab" Style="{StaticResource PageHeading}"/>
+ <TextBlock Text="Preview a target, then run one check. Opening this page sends no request." Style="{StaticResource Subtitle}"/>
+ <Border Style="{StaticResource Card}"><StackPanel>
+  <TextBlock Text="Choose a check" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12"/>
+  <ComboBox x:Name="CheckKind" ItemsSource="{Binding TestLab.Choices}" DisplayMemberPath="Label" SelectedValuePath="Kind" SelectedValue="{Binding TestLab.Kind}" IsEnabled="{Binding StatusAvailable}" AutomationProperties.Name="Check type" Margin="0,0,0,12"/>
+  <TextBlock Text="Model or preset (generation, streaming and tool checks)" TextWrapping="Wrap" Margin="0,0,0,8"/>
+  <ComboBox x:Name="ProbeModel" ItemsSource="{Binding TestLab.Models}" SelectedItem="{Binding TestLab.SelectedModel}" IsEnabled="{Binding TestLab.NeedsModel}" AutomationProperties.Name="Model or preset for test" Margin="0,0,0,12"/>
+  <TextBlock Text="Saved key (catalog check only; model tests use their assigned key)" TextWrapping="Wrap" Margin="0,0,0,8"/>
+  <ComboBox x:Name="ProbeCredential" ItemsSource="{Binding TestLab.Credentials}" SelectedItem="{Binding TestLab.SelectedCredential}" IsEnabled="{Binding TestLab.NeedsCredential}" AutomationProperties.Name="Saved catalog credential" Margin="0,0,0,12"/>
+  <TextBlock Text="Generation output cap: 256–2048 tokens. This does not cap total cost." TextWrapping="Wrap" Margin="0,0,0,8"/>
+  <TextBox x:Name="OutputLimit" Text="{Binding TestLab.OutputTokenLimit,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True}" IsEnabled="{Binding TestLab.NeedsModel}" MaxWidth="200" HorizontalAlignment="Left" AutomationProperties.Name="Generation output token cap" Margin="0,0,0,12"/>
+  <Button x:Name="PreviewProbeButton" Content="_Preview target" Click="Preview" Style="{StaticResource PreviewCapButton}" HorizontalAlignment="Left"/>
+ </StackPanel></Border>
+ <Border Style="{StaticResource Card}"><StackPanel>
+  <TextBlock Text="Review before Run" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12"/>
+  <TextBlock Text="{Binding TestLab.PreviewText}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+  <CheckBox x:Name="ProbeAcknowledgement" Content="I reviewed this target and accept any possible charge." IsEnabled="{Binding TestLab.CanRun}" Margin="0,0,0,12"/>
+  <WrapPanel><Button x:Name="RunProbeButton" Content="_Run one check" Click="Run" Style="{StaticResource RunCapButton}" Margin="0,0,12,0"/><Button x:Name="CancelProbeButton" Content="_Cancel check" Click="Cancel" IsEnabled="{Binding TestLab.Running}"/></WrapPanel>
+  <TextBlock Text="{Binding TestLab.Elapsed}" TextWrapping="Wrap" Margin="0,12,0,0" AutomationProperties.LiveSetting="Polite"/>
+ </StackPanel></Border>
+ <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Observed result" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12"/><TextBlock x:Name="ProbeOutcome" Text="{Binding TestLab.ResultText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/></StackPanel></Border>
+</StackPanel></UserControl>

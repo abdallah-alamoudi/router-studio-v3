@@ -1,0 +1,26 @@
+<UserControl x:Class="RouterStudio.Desktop.Views.KeysView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <StackPanel>
+  <TextBlock Text="Keys &amp; assignments" Style="{StaticResource PageHeading}"/>
+  <TextBlock Text="Create the key with its intended group in 8stoken first. Labels here name saved credentials; they do not grant gateway permissions." Style="{StaticResource Subtitle}"/>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="Saved labels and catalog references" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+   <TextBlock Text="{Binding Keys.References}" TextWrapping="Wrap"/>
+  </StackPanel></Border>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="Add or replace a key" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+   <TextBlock Text="Credential label (letters, numbers, underscore)" Margin="0,0,0,8"/>
+   <TextBox x:Name="CredentialLabel" Text="{Binding Keys.Label,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Keys.CanPreview}" MaxLength="40" AutomationProperties.Name="Credential label" Margin="0,0,0,16"/>
+   <TextBlock Text="Select raw models (Ctrl-click for multiple). Custom labels require a model; PLUS/PRO/FULL also update their supported presets." TextWrapping="Wrap" Margin="0,0,0,8"/>
+   <ListBox x:Name="RawModels" ItemsSource="{Binding Keys.RawModels}" SelectionMode="Extended" DisplayMemberPath="Id" IsEnabled="{Binding Keys.CanPreview}" SelectionChanged="SelectionChanged" AutomationProperties.Name="Raw models for key assignment" MaxHeight="240" Margin="0,0,0,16"/>
+   <Button x:Name="PreviewRoutesButton" Content="_Preview assignments" IsEnabled="{Binding Keys.CanPreview}" HorizontalAlignment="Left" Click="PreviewRoutes"/>
+  </StackPanel></Border>
+  <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="Review proposed assignments" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+   <TextBlock Text="{Binding Keys.PreviewText}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+   <TextBlock Text="Paste key (masked; cleared on submission)" Margin="0,0,0,8"/>
+   <PasswordBox x:Name="KeyPassword" AutomationProperties.Name="New or replacement API key" Margin="0,0,0,16"/>
+   <TextBlock Text="Apply requires your work saved and Codex closed because the router restarts. Configuration changes after preview are refused. Unselected mappings stay unchanged." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,16"/>
+   <Button x:Name="ApplyKeyButton" Content="Review and _apply encrypted key" IsEnabled="{Binding Keys.CanApply}" HorizontalAlignment="Left" Click="ApplyKey"/>
+  </StackPanel></Border>
+ </StackPanel>
+</UserControl>
