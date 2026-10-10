@@ -101,7 +101,7 @@ test('fixed-port skip is never summarized as a worker pass',{skip:skipWindows},a
 
 test('verification runs tests from the selected project directory',{skip:skipPwsh},async t=>{
   const root=workspace(t);
-  fs.writeFileSync(path.join(root,'tests','cwd.test.mjs'),`import {test} from 'node:test';import assert from 'node:assert/strict';test('project cwd',()=>assert.equal(process.cwd(),${JSON.stringify(root)}));`);
+  fs.writeFileSync(path.join(root,'tests','cwd.test.mjs'),`import {test} from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';const canonical=p=>{const value=fs.realpathSync.native(p);return process.platform==='win32'?value.toLowerCase():value};test('project cwd',()=>assert.equal(canonical(process.cwd()),canonical(${JSON.stringify(root)})));`);
   const r=await verify(root,'-SkipIntegration');
   assert.equal(r.status,0,output(r));assert.match(output(r),/PASS - Node tests/);
 });
