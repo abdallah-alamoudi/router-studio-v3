@@ -4,7 +4,8 @@ if($RequireSignature -or -not $AllowUnsignedPreview){throw 'This unsigned previe
 if(-not $Acknowledge){if((Read-Host 'Save work and close Router Studio and Codex. Install the unsigned preview for this Windows user? Type INSTALL') -cne 'INSTALL'){throw 'Installation cancelled.'}}
 $package=if((Split-Path $PSScriptRoot -Leaf) -eq 'scripts'){Split-Path $PSScriptRoot -Parent}else{Split-Path (Split-Path $PSScriptRoot -Parent) -Parent}
 $appRoot=Join-Path $env:LOCALAPPDATA 'RouterStudio';$dataRoot=Join-Path $env:LOCALAPPDATA 'Safe8stokenRouter'
-. (if(Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Desktop-Package.ps1')){Join-Path $PSScriptRoot 'Desktop-Package.ps1'}else{Join-Path (Split-Path $PSScriptRoot -Parent) 'packaging/Desktop-Package.ps1'})
+$packageHelper=if(Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Desktop-Package.ps1')){Join-Path $PSScriptRoot 'Desktop-Package.ps1'}else{Join-Path (Split-Path $PSScriptRoot -Parent) 'packaging/Desktop-Package.ps1'}
+. $packageHelper
 [void](TestDesktopManifest $package)
 $mutex=[Threading.Mutex]::new($false,('Local\RouterStudioManagement-'+(DesktopScope $dataRoot)));$held=$false
 $bootstrapChanges=@()

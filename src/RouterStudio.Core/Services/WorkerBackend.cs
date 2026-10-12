@@ -110,7 +110,7 @@ public sealed partial class WorkerBackend : IStudioBackend
   if(!result.Ok || result.Data is null)throw new StudioBackendException(result.Error ?? StudioErrors.Get("invalid_result"));
   try{
    var snapshot=result.Data.Value.Deserialize<StudioSnapshot>(StudioJson.Options);
-   if(snapshot is null || snapshot.SnapshotDigest is null || !Regex.IsMatch(snapshot.SnapshotDigest,"^[a-f0-9]{64}$") || snapshot.CheckedAtUtc==default || snapshot.Models is null || snapshot.Keys is null || snapshot.Backups is null || snapshot.RouterHealth is null || snapshot.Connection is null || snapshot.RuntimeVersions is null)throw new JsonException();
+   if(snapshot is null || snapshot.SnapshotDigest is null || !Regex.IsMatch(snapshot.SnapshotDigest,"^[a-f0-9]{64}$") || snapshot.CheckedAtUtc==default || snapshot.Models is null || snapshot.Credentials is null || snapshot.CustomModels is null || snapshot.Keys is null || snapshot.Backups is null || snapshot.RouterHealth is null || snapshot.Connection is null || snapshot.RuntimeVersions is null)throw new JsonException();
    return snapshot;
   }catch(JsonException){throw new StudioBackendException(StudioErrors.Get("invalid_result"));}
  }

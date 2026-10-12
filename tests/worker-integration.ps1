@@ -37,7 +37,7 @@ try{
     [Environment]::SetEnvironmentVariable('CODEX_HOME',$null,'Process')
     $root=Join-Path $env:LOCALAPPDATA 'Safe8stokenRouter';$codex=Join-Path $env:USERPROFILE '.codex'
     New-Item $root,$codex -ItemType Directory -Force|Out-Null
-    foreach($name in @('provider-switch.mjs','model-manager.mjs','Studio-Protocol.ps1')){$source=if($name -eq 'Studio-Protocol.ps1'){Join-Path $project 'src/worker/Studio-Protocol.ps1'}else{Join-Path $project ('src/router/'+$name)};Copy-Item $source (Join-Path $root $name)}
+    foreach($name in @('provider-switch.mjs','model-manager.mjs','custom-models.mjs','management.mjs','Studio-Protocol.ps1')){$source=if($name -eq 'Studio-Protocol.ps1'){Join-Path $project 'src/worker/Studio-Protocol.ps1'}else{Join-Path $project ('src/router/'+$name)};Copy-Item $source (Join-Path $root $name)}
     $Node|Set-Content (Join-Path $root 'node-path.txt')
     @('model_provider = "safe_8stoken"','model = "gpt-6.1-sol"','','[model_providers.safe_8stoken]','base_url = "http://127.0.0.1:18761/v1"','env_key = "SAFE_8STOKEN_LOCAL_TOKEN"','wire_api = "responses"') | Set-Content (Join-Path $codex 'config.toml')
     & $Node (Join-Path $root 'provider-switch.mjs') init (Join-Path $codex 'config.toml') $root|Out-Null

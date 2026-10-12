@@ -6,6 +6,8 @@ public sealed record StudioSnapshot
  public bool Healthy { get; init; }
  public RouterHealth RouterHealth { get; init; } = new();
  public List<StudioModel> Models { get; init; } = [];
+ public List<StudioCredential> Credentials { get; init; } = [];
+ public List<StudioCustomModel> CustomModels { get; init; } = [];
  public List<string> Keys { get; init; } = [];
  [JsonIgnore] public IReadOnlyList<string> CredentialLabels => Keys;
  public List<StudioBackup> Backups { get; init; } = [];
@@ -43,3 +45,28 @@ public sealed record StudioModel
  public List<string> SupportedReasoningLevels {get;init;}=[];
 }
 public sealed record StudioBackup { public string Id {get;init;}=""; public DateTimeOffset Date {get;init;} public long Bytes {get;init;} }
+
+public sealed record StudioCredential
+{
+ public string Id {get;init;}="";
+ public string Label {get;init;}="";
+ public bool Saved {get;init;}
+ public DateTimeOffset? CatalogFetchedAtUtc {get;init;}
+ public List<StudioCatalogModel> CatalogModels {get;init;}=[];
+}
+public sealed record StudioCatalogModel
+{
+ public string Id {get;init;}="";
+ public string Name {get;init;}="";
+ public List<string> SupportedReasoningLevels {get;init;}=[];
+}
+public sealed record StudioCustomModel
+{
+ public string Id {get;init;}="";
+ public string CredentialId {get;init;}="";
+ public string OriginalModel {get;init;}="";
+ public string DisplayLabel {get;init;}="";
+ public string Availability {get;init;}="unavailable";
+ public bool Saved {get;init;}
+ public List<string> SupportedReasoningLevels {get;init;}=[];
+}

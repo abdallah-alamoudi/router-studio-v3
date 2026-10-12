@@ -102,6 +102,15 @@ public sealed class WorkerBackendTests
  }
  [TestMethod] public async Task CancelledBeforeLaunchLeavesNoJob()
  {using var cancel=new CancellationTokenSource();cancel.Cancel();Assert.AreEqual("cancelled",(await backend.ExecuteAsync(StudioRequest.Create("repair"),ct:cancel.Token)).Error?.Code);JobsEmpty();}
+ [TestMethod] public async Task NullManagementCollectionsAreControlledErrors()
+ {
+  foreach(var mode in new[]{"null-credentials","null-custom-models"}) {
+   Mode(mode);
+   var error=await Assert.ThrowsExactlyAsync<StudioBackendException>(async()=>{await backend.GetSnapshotAsync();});
+   Assert.AreEqual("invalid_result",error.Error.Code);
+  }
+  Mode("normal");Assert.AreEqual(0,(await backend.GetSnapshotAsync()).Credentials.Count);
+ }
  [TestMethod] public async Task TypedSnapshotMatchesWorkerData()
  {var s=await backend.GetSnapshotAsync();Assert.AreEqual(new string('a',64),s.SnapshotDigest);}
  [TestMethod] public async Task PrivateJobRootHasOnlyCurrentUserAndSystem()

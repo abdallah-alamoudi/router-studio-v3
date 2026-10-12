@@ -8,3 +8,20 @@ test('redirect_never_followed and upstream errors not replayed or echoed',async(
 test('malformed catalog and response limit cannot pass',async()=>{for(const body of ['{"data":{}}','{"data":[{"id":42}]}','not JSON','x'.repeat(1024*1024+1)]){const f=fixture(200,body);assert.equal((await runProbe(plan,'fake-provider-key',f)).outcome,'failed');}});
 test('local and official_auth_not_verified send zero upstream requests',async()=>{const f=fixture(200,'{}');for(const kind of ['local','official_config']){const result=await runProbe({kind,endpointName:kind==='local'?'Local router':'Official ChatGPT',snapshotDigest:'a'.repeat(64)},null,f);assert.equal(result.outcome,'not_verified');}assert.equal(f.calls.length,0);});
 test('absolute timeout bounds stalled headers and cancellation aborts transport',async()=>{let destroyed=0;const stalled={request(){const req=new EventEmitter();req.end=()=>{};req.destroy=()=>destroyed++;return req;},timeoutMs:10};assert.equal((await runProbe(plan,'fake-provider-key',stalled)).outcome,'timed_out');const cancel=new AbortController();const pending=runProbe(plan,'fake-provider-key',{...stalled,timeoutMs:30000,signal:cancel.signal});cancel.abort();assert.equal((await pending).outcome,'cancelled');assert.equal(destroyed,2);});
+
+test('explicit catalog collection returns normalized entries, while diagnostic probes stay metadata-free',async()=>{
+ const f=fixture(200,JSON.stringify({data:[{id:'gpt-6.1-sol',supported_reasoning_levels:[{effort:'medium'}],owner:'private-provider-field'}]}));
+ const result=await runProbe(plan,'fake-provider-key',{...f,includeCatalog:true});
+ assert.equal(result.outcome,'passed');
+ assert.deepEqual(result.catalog,{models:[{slug:'gpt-6.1-sol',supported_reasoning_levels:[{effort:'medium'}]}]});
+ assert.doesNotMatch(JSON.stringify(result),/private-provider-field|fake-provider-key/);
+ const ordinary=await runProbe(plan,'fake-provider-key',f);
+ assert.equal(ordinary.catalog,undefined);
+});
+test('catalog collector fails closed on duplicate ids, malformed effort metadata or reflected secret',async()=>{
+ for(const data of [[{id:'raw'},{id:'raw'}],[{id:'raw',supported_reasoning_levels:['high']}],[{id:'fake-provider-key'}]]){
+  const f=fixture(200,JSON.stringify({data}));
+  const result=await runProbe(plan,'fake-provider-key',{...f,includeCatalog:true});
+  assert.equal(result.outcome,'failed');assert.equal(result.errorCode,'protocol_mismatch');assert.equal(result.catalog,undefined);
+ }
+});

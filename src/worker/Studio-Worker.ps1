@@ -50,14 +50,14 @@ function GetHealth{
     }catch{}
     return $null
 }
-function InvokeProbeNode($InputValue,[string]$Credential='', [switch]$Plan,[switch]$Preview) {
+function InvokeProbeNode($InputValue,[string]$Credential='', [switch]$Plan,[switch]$Preview,[switch]$Catalog) {
     $launch=[Diagnostics.ProcessStartInfo]::new()
     $launch.FileName=(Get-Content -LiteralPath (Join-Path $root 'node-path.txt') -Raw -Encoding UTF8).Trim()
     $launch.UseShellExecute=$false;$launch.CreateNoWindow=$true
     $launch.RedirectStandardInput=$true;$launch.RedirectStandardOutput=$true;$launch.RedirectStandardError=$true
     $launch.StandardInputEncoding=[Text.UTF8Encoding]::new($false)
     $launch.StandardOutputEncoding=[Text.UTF8Encoding]::new($false,$true)
-    $launch.ArgumentList.Add((Join-Path $moduleRoot 'probe-cli.mjs'));if($Preview){$launch.ArgumentList.Add('--preview')}elseif($Plan){$launch.ArgumentList.Add('--plan')}
+    $launch.ArgumentList.Add((Join-Path $moduleRoot 'probe-cli.mjs'));if($Catalog){$launch.ArgumentList.Add('--catalog')}elseif($Preview){$launch.ArgumentList.Add('--preview')}elseif($Plan){$launch.ArgumentList.Add('--plan')}
     # Build a dedicated environment rather than inheriting API keys or Node startup hooks.
     $launch.Environment.Clear()
     foreach($name in @('SystemRoot','WINDIR','TEMP','TMP','PATH','PATHEXT','USERPROFILE','LOCALAPPDATA')){
@@ -75,7 +75,7 @@ function InvokeProbeNode($InputValue,[string]$Credential='', [switch]$Plan,[swit
         if(-not $process.WaitForExit(35000)){$process.Kill($true);StopStudioAction 'operation_failed'}
         $errors.GetAwaiter().GetResult()|Out-Null
         $text=$output.GetAwaiter().GetResult()
-        if($text.Length -gt 16384){StopStudioAction 'invalid_result'}
+        if($text.Length -gt $(if($Catalog){2MB}else{16384})){StopStudioAction 'invalid_result'}
         try{$response=$text|ConvertFrom-Json}catch{StopStudioAction 'invalid_result'}
         if($response.schemaVersion -ne 1 -or $response.ok -isnot [bool]){StopStudioAction 'invalid_result'}
         if(-not $response.ok){
@@ -96,17 +96,17 @@ function GetProbe($request) {
     $probeRequest=[ordered]@{}
     foreach($property in $request.PSObject.Properties){
         if($property.Name -in @('schemaVersion','action')){continue}
-        if($property.Name -notin @('kind','modelId','credentialLabel','outputTokenLimit','expectedSnapshotDigest','acknowledgement')){StopStudioAction 'invalid_request'}
+        if($property.Name -notin @('kind','modelId','credentialId','credentialLabel','outputTokenLimit','expectedSnapshotDigest','acknowledgement')){StopStudioAction 'invalid_request'}
         $probeRequest[$property.Name]=$property.Value
     }
     $preview=$request.action -eq 'preview-probe'
     $plan=InvokeProbeNode -Plan -Preview:$preview -InputValue @{config=(Get-Content -LiteralPath (Join-Path $root 'router-config.json') -Raw -Encoding UTF8|ConvertFrom-Json);catalog=(Get-Content -LiteralPath (Join-Path $root 'codex-router-catalog.json') -Raw -Encoding UTF8|ConvertFrom-Json);request=$probeRequest;snapshotDigest=$digest}
     if($preview){
         if((GetStudioSnapshotDigest $root) -cne $digest){StopStudioAction 'config_changed'}
-        return @{kind=$plan.kind;modelId=$plan.modelId;resolvedModel=$plan.resolvedModel;effort=$plan.effort;outputTokenLimit=$plan.outputTokenLimit;credentialLabel=$plan.credentialLabel;endpointName=$plan.endpointName;snapshotDigest=$digest}
+        return @{kind=$plan.kind;modelId=$plan.modelId;resolvedModel=$plan.resolvedModel;effort=$plan.effort;outputTokenLimit=$plan.outputTokenLimit;credentialId=$plan.credentialId;credentialLabel=$plan.credentialLabel;endpointName=$plan.endpointName;snapshotDigest=$digest}
     }
     $timer=[Diagnostics.Stopwatch]::StartNew()
-    $result=@{kind=$plan.kind;modelId=$null;credentialLabel=$null;endpointName=$plan.endpointName;outcome='not_verified';errorCode=$null;httpStatus=$null;elapsedMs=0;firstEventMs=$null;completedAtUtc=[DateTime]::UtcNow.ToString('o');snapshotDigest=$digest}
+    $result=@{kind=$plan.kind;modelId=$null;credentialId=$plan.credentialId;credentialLabel=$null;endpointName=$plan.endpointName;outcome='not_verified';errorCode=$null;httpStatus=$null;elapsedMs=0;firstEventMs=$null;completedAtUtc=[DateTime]::UtcNow.ToString('o');snapshotDigest=$digest}
     switch($plan.kind) {
         'local' {
             if(GetHealth){$result.outcome='passed'}else{$result.outcome='failed';$result.errorCode='network_error'}
@@ -117,7 +117,10 @@ function GetProbe($request) {
             # Configuration cannot prove account authentication, workspace or quota.
         }
         {$_ -in @('catalog','responses','stream','tool')} {
-            if($plan.keyEnv -notmatch '^SAFE_8STOKEN_(PLUS|PRO|FULL|EXTRA_[A-Z][A-Z0-9_]{0,39})$' -or $plan.credentialLabel -notmatch '^[A-Z][A-Z0-9_]{0,39}$'){StopStudioAction 'invalid_request'}
+            if($plan.keyEnv -notmatch '^SAFE_8STOKEN_(PLUS|PRO|FULL|EXTRA_[A-Z][A-Z0-9_]{0,39})$'){StopStudioAction 'invalid_request'}
+            if($plan.credentialId){
+                if($plan.credentialId -notmatch '^[A-Za-z][A-Za-z0-9._:-]{0,79}$' -or $plan.credentialLabel -isnot [string] -or $plan.credentialLabel.Length -gt 80 -or -not $plan.credentialLabel.Trim() -or $plan.credentialLabel -match '[\x00-\x1f\x7f]'){StopStudioAction 'invalid_request'}
+            }elseif($plan.credentialLabel -notmatch '^[A-Z][A-Z0-9_]{0,39}$'){StopStudioAction 'invalid_request'}
             $stored=Import-Clixml -LiteralPath (Join-Path $root 'secrets.xml')
             $selected=$stored[$plan.keyEnv]
             if($selected -isnot [Security.SecureString] -or $selected.Length -eq 0){StopStudioAction 'invalid_key'}
@@ -182,19 +185,83 @@ function RecoverKeySave{
         }catch{StopStudioAction 'recovery_required'}
     }
 }
+function AssertCustomSnapshotCurrent($request) {
+    if((GetStudioSnapshotDigest $root) -cne $request.expectedSnapshotDigest){StopStudioAction 'config_changed'}
+}
+function ReadCredentialRegistry([switch]$Persist) {
+    $secrets=Import-Clixml -LiteralPath (Join-Path $root 'secrets.xml')
+    try{
+        $prefix=if($Persist){'registry-write'}else{'registry-status'};$inputFile=Join-Path $Job ($prefix+'-input.json');$outputFile=Join-Path $Job ($prefix+'-output.json')
+        WriteStudioJson $inputFile @{savedEnvironments=@($secrets.Keys)}
+        InvokeNode -Arguments @((Join-Path $moduleRoot 'management.mjs'),(Join-Path $root 'router-config.json'),(Join-Path $root 'codex-router-catalog.json'),$inputFile,$outputFile,'--registry') -FailureCode 'invalid_request'|Out-Null
+        return (Get-Content -LiteralPath $outputFile -Raw -Encoding UTF8|ConvertFrom-Json)
+    }finally{foreach($value in $secrets.Values){if($value -is [Security.SecureString]){$value.Dispose()}}}
+}
+function SaveCustomManagement($request,$secretInput) {
+    AssertCustomSnapshotCurrent $request
+    $rc=Join-Path $root 'router-config.json';$cat=Join-Path $root 'codex-router-catalog.json';$secretsFile=Join-Path $root 'secrets.xml'
+    $fetched=$null
+    if($request.action -eq 'fetch-credential-catalog'){
+        $config=ReadCredentialRegistry
+        $credential=@($config.credentials|Where-Object{$_.id -ceq $request.credentialId})
+        if($credential.Count -ne 1){StopStudioAction 'invalid_request'}
+        $credential=$credential[0]
+        $stored=Import-Clixml -LiteralPath $secretsFile;$selected=$stored[$credential.keyEnv]
+        if($selected -isnot [Security.SecureString] -or $selected.Length -eq 0){StopStudioAction 'invalid_key'}
+        $plan=@{kind='catalog';credentialId=$credential.id;credentialLabel=$credential.label;keyEnv=$credential.keyEnv;endpointName='8stoken';snapshotDigest=$request.expectedSnapshotDigest}
+        try{$plain=[Net.NetworkCredential]::new('',$selected).Password;$response=InvokeProbeNode -Catalog -InputValue $plan -Credential $plain}finally{$plain=$null}
+        if($response.outcome -ne 'passed' -or -not $response.catalog){StopStudioAction 'invalid_result'}
+        $fetched=$response.catalog
+    }
+    $requestFile=Join-Path $Job 'management-request.json';$outputFile=Join-Path $Job 'management-result.json'
+    $savedSecrets=Import-Clixml -LiteralPath $secretsFile
+    try{WriteStudioJson $requestFile @{request=$request;catalog=$fetched;savedEnvironments=@($savedSecrets.Keys)}}finally{foreach($value in $savedSecrets.Values){if($value -is [Security.SecureString]){$value.Dispose()}}}
+    InvokeNode -Arguments @((Join-Path $moduleRoot 'management.mjs'),$rc,$cat,$requestFile,$outputFile) -FailureCode 'invalid_request'|Out-Null
+    $updated=Get-Content -LiteralPath $outputFile -Raw -Encoding UTF8|ConvertFrom-Json
+    $stored=Import-Clixml -LiteralPath $secretsFile
+    if($request.action -in @('save-credential','rotate-credential')){
+        if(-not $secretInput -or $secretInput.key -isnot [Security.SecureString] -or $secretInput.key.Length -eq 0){StopStudioAction 'invalid_key'}
+        $stored[$updated.keyEnv]=$secretInput.key
+    }elseif($request.action -eq 'delete-credential'){$stored.Remove($updated.keyEnv)}
+    $stored|Export-Clixml ($secretsFile+'.studio-new')
+    WriteUtf8 ($rc+'.studio-new') ($updated.config|ConvertTo-Json -Depth 100)
+    WriteUtf8 ($cat+'.studio-new') ($updated.catalog|ConvertTo-Json -Depth 100)
+    AssertCustomSnapshotCurrent $request
+    $files=@($secretsFile,$rc,$cat)
+    foreach($file in $files){Copy-Item -LiteralPath $file -Destination ($file+'.before-studio-key') -Force}
+    WriteUtf8 (Join-Path $root 'studio-key.pending.json') '{"version":1}'
+    SetStudioRestartRequired $root 'custom_management_updated'
+    # Never let an owned router continue using a deleted/rotated secret after commit.
+    StopOwnedRouter
+    try{foreach($file in $files){Move-Item -LiteralPath ($file+'.studio-new') -Destination $file -Force};Remove-Item -LiteralPath (Join-Path $root 'studio-key.pending.json')}
+    catch{RecoverKeySave;StopStudioAction 'recovery_required'}
+    $result=GetStatus;$result.message='Saved securely. Restart the local router explicitly before using the updated catalog or credentials. Provider access has not been verified.'
+    return $result
+}
 function GetStatus{
     $digest=GetStudioSnapshotDigest $root
     $s=RunSwitch 'status'|ConvertFrom-Json
     $health=GetHealth
-    $cfg=Get-Content -LiteralPath (Join-Path $root 'router-config.json') -Raw -Encoding UTF8|ConvertFrom-Json
+    $cfg=ReadCredentialRegistry
     $catalog=Get-Content -LiteralPath (Join-Path $root 'codex-router-catalog.json') -Raw -Encoding UTF8|ConvertFrom-Json
     $keys=Import-Clixml -LiteralPath (Join-Path $root 'secrets.xml')
     $rows=@(foreach($m in $catalog.models){
         $alias=$cfg.aliases.PSObject.Properties[$m.slug]
         $route=if($cfg.modelRoutes){$cfg.modelRoutes.PSObject.Properties[$m.slug]}else{$null}
-        $key=if($alias){$alias.Value.keyEnv}elseif($route){$route.Value}else{$cfg.defaultKeyEnv}
+        $custom=@($cfg.customModels|Where-Object{$_.id -ceq $m.slug})|Select-Object -First 1
+        $credential=if($custom){@($cfg.credentials|Where-Object{$_.id -ceq $custom.credentialId})|Select-Object -First 1}else{$null}
+        $key=if($custom){$credential.keyEnv}elseif($alias){$alias.Value.keyEnv}elseif($route){$route.Value}else{$cfg.defaultKeyEnv}
         $levels=@($m.supported_reasoning_levels|ForEach-Object{if($_.effort -is [string] -and $_.effort -match '^[a-z][a-z0-9_]{0,31}$'){$_.effort}})
-        [pscustomobject]@{Id=$m.slug;Name=$(if($m.display_name){$m.display_name}else{$m.slug});Credential=($key -replace '^SAFE_8STOKEN_EXTRA_','' -replace '^SAFE_8STOKEN_','');Kind=$(if($alias){'Preset'}else{'Raw model'});Saved=[bool]$keys.ContainsKey($key);hasExplicitRoute=[bool]($alias -or $route);KeyStatus=$(if($keys.ContainsKey($key)){'Saved'}else{'Missing'});supportedReasoningLevels=$levels}
+        [pscustomobject]@{Id=$m.slug;Name=$(if($m.display_name){$m.display_name}else{$m.slug});Credential=$(if($custom){$credential.label}else{($key -replace '^SAFE_8STOKEN_EXTRA_','' -replace '^SAFE_8STOKEN_','')});Kind=$(if($custom){'Custom model'}elseif($alias){'Preset'}else{'Raw model'});Saved=[bool]$keys.ContainsKey($key);hasExplicitRoute=[bool]($custom -or $alias -or $route);KeyStatus=$(if($keys.ContainsKey($key)){'Saved'}else{'Missing'});supportedReasoningLevels=$levels}
+    })
+    $credentials=@(foreach($credential in $cfg.credentials){
+        $source=$credential.catalog
+        $models=@(foreach($m in $source.models){@{id=$m.slug;name=$(if($m.display_name){$m.display_name}else{$m.slug});supportedReasoningLevels=@($m.supported_reasoning_levels|ForEach-Object{$_.effort})}})
+        @{id=$credential.id;label=$credential.label;saved=[bool]$keys.ContainsKey($credential.keyEnv);catalogFetchedAtUtc=$source.fetchedAtUtc;catalogModels=$models}
+    })
+    $customModels=@(foreach($custom in $cfg.customModels){
+        $credential=@($cfg.credentials|Where-Object{$_.id -ceq $custom.credentialId})|Select-Object -First 1
+        @{id=$custom.id;credentialId=$custom.credentialId;originalModel=$custom.originalModel;displayLabel=$custom.displayLabel;availability=$(if(-not $credential){'credential_missing'}elseif($custom.availability -eq 'unavailable'){'unavailable'}else{'available'});saved=[bool]($credential -and $keys.ContainsKey($credential.keyEnv));supportedReasoningLevels=@($custom.metadata.supported_reasoning_levels|ForEach-Object{$_.effort})}
     })
     $nodeVersion=InvokeNode -Arguments @('--version')
     if($nodeVersion -notmatch '^v\d+\.\d+\.\d+$'){StopStudioAction 'operation_failed'}
@@ -203,7 +270,7 @@ function GetStatus{
     $configurationCurrent=$false
     try{$loaded=Get-Content -LiteralPath (Join-Path $root 'router-loaded-snapshot.json') -Raw -Encoding UTF8|ConvertFrom-Json;$configurationCurrent=([bool]$health -and -not $restart -and $loaded.snapshotDigest -eq $digest)}catch{}
     $message=if($restart){'Saved files were recovered or updated. Save your work, close Codex and restart the router. Reachability does not prove the running router loaded these files.'}else{'Status refreshed. No paid upstream request was sent.'}
-    return @{connection=$s;healthy=[bool]$health;models=$rows;keys=@($keys.Keys|Where-Object{$_ -ne 'SAFE_8STOKEN_LOCAL_TOKEN'}|ForEach-Object{$_ -replace '^SAFE_8STOKEN_EXTRA_','' -replace '^SAFE_8STOKEN_',''});backups=@(RunSwitch 'backups'|ConvertFrom-Json);message=$message;runtimeVersions=@{node=$nodeVersion;powershell=$PSVersionTable.PSVersion.ToString()};snapshotDigest=$digest;checkedAtUtc=[DateTime]::UtcNow.ToString('o');restartRequired=$restart;routerHealth=@{reachable=[bool]$health;configurationCurrent=$configurationCurrent}}
+    return @{credentials=$credentials;customModels=$customModels;connection=$s;healthy=[bool]$health;models=$rows;keys=@($keys.Keys|Where-Object{$_ -ne 'SAFE_8STOKEN_LOCAL_TOKEN'}|ForEach-Object{$_ -replace '^SAFE_8STOKEN_EXTRA_','' -replace '^SAFE_8STOKEN_',''});backups=@(RunSwitch 'backups'|ConvertFrom-Json);message=$message;runtimeVersions=@{node=$nodeVersion;powershell=$PSVersionTable.PSVersion.ToString()};snapshotDigest=$digest;checkedAtUtc=[DateTime]::UtcNow.ToString('o');restartRequired=$restart;routerHealth=@{reachable=[bool]$health;configurationCurrent=$configurationCurrent}}
 }
 try{
     try{$activeLease=[IO.File]::Open((Join-Path $Job 'active.lock'),[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)}catch{StopStudioAction 'busy'}
@@ -213,8 +280,9 @@ try{
     try{$request=Get-Content -LiteralPath (Join-Path $Job 'request.json') -Raw -Encoding UTF8|ConvertFrom-Json}catch{StopStudioAction 'invalid_request'}
     if($null -ne $request.schemaVersion -and $request.schemaVersion -ne 1){StopStudioAction 'unsupported_schema'}
     $request=ConvertToStudioActionRequest $request
+    $customManagement=TestStudioCustomManagement $request
     $secretInput=ReadStudioSecretInput -Job $Job -Action $request.action -Request $request
-    if($request.action -notin @('install','status','official','router','start','stop','repair','restore','save-key','preview-routes','preview-backup','probe','preview-probe')){StopStudioAction 'invalid_request'}
+    if($request.action -notin @('install','status','official','router','start','stop','repair','restore','save-key','preview-routes','preview-backup','probe','preview-probe','save-credential','rotate-credential','rename-credential','delete-credential','fetch-credential-catalog','save-custom-model','delete-custom-model')){StopStudioAction 'invalid_request'}
     $previewOnly=$request.action -in @('preview-routes','preview-backup','probe','preview-probe')
     $pending=(Test-Path -LiteralPath (Join-Path $root 'studio-key.pending.json')) -or (Test-Path -LiteralPath (Join-Path $root 'provider-state.json.pending'))
     if($previewOnly -and $pending){StopStudioAction 'recovery_required'}
@@ -236,6 +304,7 @@ try{
             RunSwitch 'init'|Out-Null
         }
         switch($request.action){
+            {$customManagement}{$result=SaveCustomManagement $request $secretInput}
             {$_ -in @('probe','preview-probe')}{$result=GetProbe $request}
             'status'{$result=GetStatus}
             'stop'{if($request.ack -isnot [bool] -or -not $request.ack){StopStudioAction 'acknowledgement_required'};StopOwnedRouter;$result=GetStatus;$result.message='Owned router stop requested. Existing Codex requests may have been interrupted.'}

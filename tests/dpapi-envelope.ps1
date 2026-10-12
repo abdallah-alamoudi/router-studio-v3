@@ -29,7 +29,7 @@ function Envelope([string]$Json){
 try{
  New-Item $root,$job -ItemType Directory -Force|Out-Null
  . (Join-Path $project 'src/worker/Studio-Protocol.ps1')
- foreach($name in @('provider-switch.mjs','model-manager.mjs')){Copy-Item (Join-Path $project ('src/router/'+$name)) $root}
+ foreach($name in @('provider-switch.mjs','model-manager.mjs','custom-models.mjs','management.mjs')){Copy-Item (Join-Path $project ('src/router/'+$name)) $root}
  (Get-Command node).Source|Set-Content (Join-Path $root 'node-path.txt')
  'model = "deepseek-v4.1-flash"'|Set-Content $cp
  @{defaultKeyEnv='SAFE_8STOKEN_PLUS';aliases=@{}}|ConvertTo-Json|Set-Content (Join-Path $root 'router-config.json')

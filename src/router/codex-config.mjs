@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {buildCodexCatalog} from './custom-models.mjs';
 import crypto from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 function sections(text){
@@ -17,7 +18,7 @@ function sections(text){
 function field(s,section,name){const matches=(s.map.get(section)||[]).filter(i=>new RegExp(`^\\s*${name}\\s*=`).test(s.rows[i]));if(matches.length>1)throw Error('Duplicate TOML field');return matches[0];}
 function read(s,section,name){const i=field(s,section,name);if(i===undefined)return undefined;const raw=s.rows[i].replace(/^\s*\w+\s*=\s*/,'');const m=raw.match(/^("(?:\\.|[^"\\])*"|'[^']*')\s*(?:#.*)?$/);if(!m)throw Error(`Unsupported TOML ${name}`);return m[1][0]==="'"?m[1].slice(1,-1):JSON.parse(m[1]);}
 function set(s,section,name,value){const i=field(s,section,name);const line=`${name} = ${typeof value==='boolean'?value:JSON.stringify(value)}`;if(i!==undefined)s.rows[i]=line;else{const indices=s.map.get(section);if(!indices)throw Error('Missing custom provider section');const at=indices.length?indices.at(-1)+1:s.rows.findIndex(r=>r.trim()===`[${section}]`)+1;s.rows.splice(at,0,line);const rebuilt=sections(s.rows.join('\n'));s.rows=rebuilt.rows;s.map=rebuilt.map;}}
-export function adapt(config,catalog,aliases,catalogPath,port){
+export function adapt(config,catalog,aliases,catalogPath,port,registry){
   const s=sections(config),provider=read(s,'','model_provider');
   if(!provider||provider==='openai'||!/^[\w-]+$/.test(provider))throw Error('Existing custom provider required');
   const section=`model_providers.${provider}`;
@@ -30,7 +31,7 @@ export function adapt(config,catalog,aliases,catalogPath,port){
   if(read(s,section,'wire_api')!=='responses')throw Error('Existing Responses wire_api required');
   const base=read(s,section,'base_url');if(!base||!/^https:\/\/8stoken\.com\/v1\/?$/.test(base))throw Error('Existing direct 8stoken provider required');
   if(!Array.isArray(catalog.models))throw Error('Unsupported catalog: models array required');
-  const result=structuredClone(catalog),slugs=new Set(catalog.models.map(m=>m.slug));
+  const result=registry?buildCodexCatalog(catalog,registry):structuredClone(catalog),slugs=new Set(catalog.models.map(m=>m.slug));
   if(slugs.size!==catalog.models.length)throw Error('Duplicate catalog models');
   for(const [slug,preset]of Object.entries(aliases)){
     if(slugs.has(slug))throw Error('Alias already exists in catalog');
@@ -77,7 +78,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
       const hasPro=Object.values(router.aliases).some(a=>a.keyEnv==='SAFE_8STOKEN_PRO');
       if(hasPro&&astra?.supported_reasoning_levels?.some(x=>x.effort==='xhigh'))router.aliases['8s-extreme']={model:'gpt-6-astra',effort:'xhigh',keyEnv:'SAFE_8STOKEN_PRO',display:'6 Astra - Extreme (Pro)'};
       const generated=path.join(installDir,'codex-router-catalog.json');
-      const prepared=adapt(source.config,catalog,router.aliases,generated,router.port);
+      const prepared=adapt(source.config,catalog,router.aliases,generated,router.port,router);
       fs.writeFileSync(generated,JSON.stringify(prepared.catalog,null,2));
       fs.writeFileSync(routerPath,JSON.stringify(router,null,2));console.log('Existing model catalog validated.');
     }else if(operation==='restore'){
@@ -89,7 +90,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
     }else if(operation==='install'){
       if(fs.existsSync(statePath)||fs.existsSync(statePath+'.tmp'))throw Error('Existing or incomplete installation: rollback before reinstalling');
       const source=installationSource(config,configPath);const router=JSON.parse(fs.readFileSync(path.join(installDir,'router-config.json'),'utf8').replace(/^\uFEFF/,''));
-      const generated=path.join(installDir,'codex-router-catalog.json');const r=adapt(source.config,source.catalog,router.aliases,generated,router.port);
+      const generated=path.join(installDir,'codex-router-catalog.json');const r=adapt(source.config,source.catalog,router.aliases,generated,router.port,router);
       fs.copyFileSync(configPath,path.join(installDir,'config-before-router.toml'));
       fs.writeFileSync(generated,JSON.stringify(r.catalog,null,2));
       const temporary=configPath+'.safe-router.tmp';const pending=statePath+'.tmp';let committed=false;
@@ -101,7 +102,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
         for(const file of [temporary,pending]){try{if(fs.statSync(file).isFile())fs.unlinkSync(file);}catch{}}
         throw e;
       }
-      console.log('Codex connected. Raw models preserved; presets added.');
+      console.log('Codex connected. Raw models, presets and configured custom models added.');
     }else throw Error('Expected install, enable-extreme or restore');
   }catch(e){console.error(e.message);process.exit(1);}
 }

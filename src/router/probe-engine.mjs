@@ -1,5 +1,6 @@
 import https from 'node:https';
-import {validateProbePlan} from './route-policy.mjs';import {ProbeSse} from './probe-sse.mjs';
+import {validateProbePlan} from './route-policy.mjs';
+import {normalizeCatalogResponse} from './custom-models.mjs';import {ProbeSse} from './probe-sse.mjs';
 function classifyResponse(body,tool=false){
  if(!body||typeof body!=='object')return ['failed','protocol_mismatch'];
  if(body.error||body.status==='failed')return ['failed','upstream_error'];
@@ -14,7 +15,7 @@ function classifyResponse(body,tool=false){
 }
 export async function runProbe(plan,key,options={}){
  validateProbePlan(plan);const started=performance.now();let firstEventMs=null;
- const result=(outcome,errorCode=null,httpStatus=null)=>({kind:plan.kind,modelId:plan.modelId??null,credentialLabel:plan.credentialLabel??null,endpointName:plan.endpointName,outcome,errorCode,httpStatus,elapsedMs:performance.now()-started,firstEventMs,completedAtUtc:new Date().toISOString(),snapshotDigest:plan.snapshotDigest});
+ const result=(outcome,errorCode=null,httpStatus=null,extra={})=>({kind:plan.kind,modelId:plan.modelId??null,credentialLabel:plan.credentialLabel??null,endpointName:plan.endpointName,outcome,errorCode,httpStatus,elapsedMs:performance.now()-started,firstEventMs,completedAtUtc:new Date().toISOString(),snapshotDigest:plan.snapshotDigest,...extra});
  if(['local','official_config'].includes(plan.kind))return result('not_verified');
  if(typeof key!=='string'||!key||key.length>8192||/[\r\n\0]/.test(key))return result('failed','auth_rejected');
  const generation=plan.kind!=='catalog',stream=plan.kind==='stream';
@@ -23,7 +24,7 @@ export async function runProbe(plan,key,options={}){
  const timeoutMs=Math.min(30000,Math.max(1,options.timeoutMs??30000)),maximumBytes=Math.min(1024*1024,Math.max(1,options.maximumBytes??1024*1024));
  return new Promise(resolve=>{
   let req,res,settled=false,status=null;const signal=options.signal;
-  const finish=(outcome,errorCode)=>{if(settled)return;settled=true;(options.clearTimer??clearTimeout)(timer);signal?.removeEventListener('abort',cancel);resolve(result(outcome,errorCode,status));res?.destroy();req?.destroy();};
+  const finish=(outcome,errorCode,extra={})=>{if(settled)return;settled=true;(options.clearTimer??clearTimeout)(timer);signal?.removeEventListener('abort',cancel);resolve(result(outcome,errorCode,status,extra));res?.destroy();req?.destroy();};
   const cancel=()=>finish('cancelled');const timer=(options.setTimer??setTimeout)(()=>finish('timed_out','network_error'),timeoutMs);
   if(signal?.aborted){finish('cancelled');return;}signal?.addEventListener('abort',cancel,{once:true});
   try{
@@ -45,7 +46,7 @@ export async function runProbe(plan,key,options={}){
      if(sse){sse.end();if(!terminal)throw Error();finish(...terminal);return;}
      const value=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks)));
      if(generation){finish(...classifyResponse(value,plan.kind==='tool'));return;}
-     if(!value||!Array.isArray(value.data)||value.data.length>10000||value.data.some(m=>!m||typeof m.id!=='string'||!m.id||m.id.length>160))throw Error();finish('passed');
+     if(!value||!Array.isArray(value.data)||value.data.length>10000)throw Error();const normalized=normalizeCatalogResponse(value);if(JSON.stringify(normalized).includes(key))throw Error();finish('passed',null,options.includeCatalog?{catalog:normalized}:{});
     }catch{finish('failed','protocol_mismatch');}});
     up.on('close',()=>{if(!up.readableEnded)finish('failed','network_error');});
    });req.on('error',()=>finish('failed','network_error'));req.end(payload);

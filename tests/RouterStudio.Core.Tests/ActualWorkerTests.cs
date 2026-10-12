@@ -24,6 +24,69 @@ public sealed class ActualWorkerTests
   backend=new(new(){PowerShellPath=pwsh,WorkerPath=Path.Combine(project,"src","worker","Studio-Worker.ps1"),ProbeWorkerPath=Path.Combine(project,"src","worker","Studio-Worker.ps1"),JobsRoot=Path.Combine(root,"jobs"),FixturePaths=new(p.GetProperty("installRoot").GetString()!,p.GetProperty("configPath").GetString()!,new(p.GetProperty("healthUri").GetString()!))});
  }
  [TestCleanup] public void Cleanup(){if(Directory.Exists(root))Directory.Delete(root,true);}
+ [TestMethod] public async Task LegacyCredentialsAreAdoptedReadOnlyUntilConfirmedMutation()
+ {
+  var path=Path.Combine(root,"installation","router-config.json");var before=File.ReadAllBytes(path);
+  var snapshot=await backend.GetSnapshotAsync();var legacy=snapshot.Credentials.Single(c=>c.Id=="legacy-plus");Assert.IsTrue(legacy.Saved);
+  CollectionAssert.AreEqual(before,File.ReadAllBytes(path));
+  var renamed=await backend.ExecuteAsync(StudioRequest.Create("rename-credential",new{credentialId=legacy.Id,label="Existing key",ack=true,expectedSnapshotDigest=snapshot.SnapshotDigest}));Assert.IsTrue(renamed.Ok,renamed.Error?.Code);
+  using var cfg=JsonDocument.Parse(File.ReadAllText(path));Assert.AreEqual("SAFE_8STOKEN_PLUS",cfg.RootElement.GetProperty("credentials")[0].GetProperty("keyEnv").GetString());
+  Assert.AreEqual("SAFE_8STOKEN_PLUS",cfg.RootElement.GetProperty("defaultKeyEnv").GetString());
+ }
+ [TestMethod] public async Task IndependentCredentialCrudUsesProtectedStoreAndStableIdentity()
+ {
+  var snapshot=await backend.GetSnapshotAsync();
+  using var key=new SecretInput(Encoding.UTF8.GetBytes("{\"credentialId\":\"cred-1\",\"key\":\"fake-independent-canary\"}"));
+  var saved=await backend.ExecuteAsync(StudioRequest.Create("save-credential",new{credentialId="cred-1",label="مفتاح خاص",ack=true,expectedSnapshotDigest=snapshot.SnapshotDigest}),key);
+  Assert.IsTrue(saved.Ok,saved.Error?.Code);
+  var credentials=saved.Data!.Value.GetProperty("credentials");Assert.AreEqual("cred-1",credentials.EnumerateArray().Single(c=>c.GetProperty("id").GetString()=="cred-1").GetProperty("id").GetString());
+  Assert.IsFalse(JsonSerializer.Serialize(saved).Contains("fake-independent-canary"));
+  var configPath=Path.Combine(root,"installation","router-config.json");var cfg=JsonSerializer.Deserialize<Dictionary<string,JsonElement>>(File.ReadAllText(configPath))!;
+  var env=cfg["credentials"].EnumerateArray().Single(c=>c.GetProperty("id").GetString()=="cred-1").GetProperty("keyEnv").GetString();
+  Assert.IsFalse(File.ReadAllText(Path.Combine(root,"installation","secrets.xml")).Contains("fake-independent-canary"));
+  snapshot=await backend.GetSnapshotAsync();
+  var renamed=await backend.ExecuteAsync(StudioRequest.Create("rename-credential",new{credentialId="cred-1",label="Renamed",ack=true,expectedSnapshotDigest=snapshot.SnapshotDigest}));Assert.IsTrue(renamed.Ok,renamed.Error?.Code);
+  cfg=JsonSerializer.Deserialize<Dictionary<string,JsonElement>>(File.ReadAllText(configPath))!;Assert.AreEqual(env,cfg["credentials"].EnumerateArray().Single(c=>c.GetProperty("id").GetString()=="cred-1").GetProperty("keyEnv").GetString());
+  snapshot=await backend.GetSnapshotAsync();
+  var stale=await backend.ExecuteAsync(StudioRequest.Create("delete-credential",new{credentialId="cred-1",ack=true,expectedSnapshotDigest=new string('b',64)}));Assert.AreEqual("config_changed",stale.Error?.Code);
+  var deleted=await backend.ExecuteAsync(StudioRequest.Create("delete-credential",new{credentialId="cred-1",ack=true,expectedSnapshotDigest=snapshot.SnapshotDigest}));Assert.IsTrue(deleted.Ok,deleted.Error?.Code);Assert.AreEqual(1,deleted.Data!.Value.GetProperty("credentials").GetArrayLength());
+ }
+ [TestMethod] public async Task CustomModelCatalogBindingRotationDeletionAndRecoveryAreIsolated()
+ {
+  var snapshot=await backend.GetSnapshotAsync();
+  using var key=new SecretInput(Encoding.UTF8.GetBytes("{\"credentialId\":\"cred-1\",\"key\":\"fake-independent-canary\"}"));
+  Assert.IsTrue((await backend.ExecuteAsync(StudioRequest.Create("save-credential",new{credentialId="cred-1",label="مفتاح خاص",ack=true,expectedSnapshotDigest=snapshot.SnapshotDigest}),key)).Ok);
+  await File.WriteAllTextAsync(Path.Combine(root,"installation","probe-cli.mjs"),"""
+let text='';for await(const chunk of process.stdin)text+=chunk;const input=JSON.parse(text);
+if(process.argv[2]!=='--catalog'||input.credentialId!=='cred-1'||process.env.ROUTER_STUDIO_PROBE_KEY!=='fake-independent-canary')process.exit(1);
+process.stdout.write(JSON.stringify({schemaVersion:1,ok:true,data:{outcome:'passed',catalog:{models:[{slug:'original',supported_reasoning_levels:[{effort:'medium'}]}]}}}));
+""");
+  snapshot=await backend.GetSnapshotAsync();
+  var fetched=await backend.ExecuteAsync(StudioRequest.Create("fetch-credential-catalog",new{credentialId="cred-1",acknowledgement=true,expectedSnapshotDigest=snapshot.SnapshotDigest}));Assert.IsTrue(fetched.Ok,fetched.Error?.Code);
+  snapshot=await backend.GetSnapshotAsync();Assert.AreEqual("original",snapshot.Credentials.Single(c=>c.Id=="cred-1").CatalogModels.Single().Id);
+  var custom=await backend.ExecuteAsync(StudioRequest.Create("save-custom-model",new{customModelId="custom-1",credentialId="cred-1",originalModel="original",displayLabel="Custom",ack=true,expectedSnapshotDigest=snapshot.SnapshotDigest}));Assert.IsTrue(custom.Ok,custom.Error?.Code);
+  snapshot=await backend.GetSnapshotAsync();Assert.AreEqual("Custom model",snapshot.Models.Single(m=>m.Id=="custom-1").Kind);Assert.AreEqual("مفتاح خاص",snapshot.Models.Single(m=>m.Id=="custom-1").Credential);CollectionAssert.AreEqual(new[]{"medium"},snapshot.CustomModels.Single().SupportedReasoningLevels);
+  await File.WriteAllTextAsync(Path.Combine(root,"installation","probe-cli.mjs"),"""
+import {planProbe} from './route-policy.mjs';
+let text='';for await(const chunk of process.stdin)text+=chunk;const v=JSON.parse(text);
+const data=process.argv.some(a=>a==='--plan'||a==='--preview')?planProbe(v.config,v.catalog,v.request,v.snapshotDigest,{preview:process.argv.includes('--preview')}):{outcome:'passed',httpStatus:200};
+process.stdout.write(JSON.stringify({schemaVersion:1,ok:true,data}));
+""");
+  var check=new ProbeRequest(ProbeKind.Responses,ModelId:"custom-1",ExpectedSnapshotDigest:snapshot.SnapshotDigest);
+  var preview=await backend.ExecuteAsync(StudioRequest.Create("preview-probe",check));Assert.IsTrue(preview.Ok,preview.Error?.Code);
+  Assert.AreEqual("responses",preview.Data!.Value.GetProperty("kind").GetString(),preview.Data.Value.ToString());
+  Assert.AreEqual("مفتاح خاص",ProbeCodec.ReadPreview(preview.Data!.Value).CredentialLabel);
+  var executed=await backend.ExecuteAsync(StudioRequest.Create("probe",check with {Acknowledgement=true}));Assert.IsTrue(executed.Ok,executed.Error?.Code);
+  Assert.AreEqual("passed",executed.Data!.Value.GetProperty("outcome").GetString());
+  var refused=await backend.ExecuteAsync(StudioRequest.Create("delete-credential",new{credentialId="cred-1",ack=true,expectedSnapshotDigest=snapshot.SnapshotDigest}));Assert.AreEqual("invalid_request",refused.Error?.Code);
+  var rotated=await backend.ExecuteAsync(StudioRequest.Create("rotate-credential",new{credentialId="cred-1",ack=true,expectedSnapshotDigest=snapshot.SnapshotDigest}),key);Assert.IsTrue(rotated.Ok,rotated.Error?.Code);
+  snapshot=await backend.GetSnapshotAsync();Assert.IsNull(snapshot.Credentials.Single(c=>c.Id=="cred-1").CatalogFetchedAtUtc);Assert.AreEqual("unavailable",snapshot.CustomModels.Single().Availability);Assert.IsFalse(snapshot.Models.Any(m=>m.Id=="custom-1"));
+  var deleted=await backend.ExecuteAsync(StudioRequest.Create("delete-custom-model",new{customModelId="custom-1",ack=true,expectedSnapshotDigest=snapshot.SnapshotDigest}));Assert.IsTrue(deleted.Ok,deleted.Error?.Code);
+  // Simulate interruption after a partial write. Reuse the existing encrypted backups/recovery marker.
+  var install=Path.Combine(root,"installation");File.WriteAllText(Path.Combine(install,"studio-key.pending.json"),"{\"version\":1}");File.WriteAllText(Path.Combine(install,"router-config.json"),"{bad");
+  snapshot=await backend.GetSnapshotAsync();Assert.AreEqual(1,snapshot.CustomModels.Count);Assert.IsTrue(snapshot.RestartRequired);Assert.IsFalse(File.Exists(Path.Combine(install,"studio-key.pending.json")));
+  foreach(var file in new[]{"router-config.json","codex-router-catalog.json","secrets.xml"})Assert.IsFalse(File.ReadAllText(Path.Combine(install,file)).Contains("fake-independent-canary"));
+ }
  [TestMethod] public async Task ActualWorkerReturnsTypedSnapshotThroughBridge()
  {
   var snapshot=await backend.GetSnapshotAsync();

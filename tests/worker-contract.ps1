@@ -12,7 +12,7 @@ function Fixture {
     $dir=Join-Path $base ([guid]::NewGuid().ToString('N'))
     $root=Join-Path $dir 'local/Safe8stokenRouter';$cp=Join-Path $dir 'user/.codex/config.toml'
     New-Item -ItemType Directory -Path $root,(Split-Path $cp) -Force|Out-Null
-    foreach($name in @('provider-switch.mjs','model-manager.mjs')){Copy-Item (Join-Path $project ('src/router/'+$name)) $root}
+    foreach($name in @('provider-switch.mjs','model-manager.mjs','custom-models.mjs','management.mjs')){Copy-Item (Join-Path $project ('src/router/'+$name)) $root}
     $Node|Set-Content (Join-Path $root 'node-path.txt')
     @('model_provider = "safe_8stoken"','model = "gpt-6.1-sol"','','[model_providers.safe_8stoken]','base_url = "http://127.0.0.1:18761/v1"','env_key = "SAFE_8STOKEN_LOCAL_TOKEN"','wire_api = "responses"')|Set-Content $cp
     & $Node (Join-Path $root 'provider-switch.mjs') init $cp $root|Out-Null
@@ -62,7 +62,7 @@ try{
     Check 'worker_status_uses_versioned_result_envelope' {
         $f=Fixture;$r=RunWorker $f @{action='status'}
         Assert ($r.schemaVersion -eq 1 -and $r.ok) 'Missing versioned success envelope'
-        foreach($field in @('connection','healthy','models','keys','backups','message')){Assert ($null -ne $r.data.$field) "Status field missing: $field"}
+        foreach($field in @('connection','healthy','models','keys','credentials','customModels','backups','message')){Assert ($null -ne $r.data.$field) "Status field missing: $field"}
         Assert ($null -eq $r.error -and $r.data.connection.selected -eq 'router' -and $r.data.connection.provider -eq 'safe_8stoken') 'Success envelope is not a router status result'
     }
     Check 'unknown_action_is_safe' {

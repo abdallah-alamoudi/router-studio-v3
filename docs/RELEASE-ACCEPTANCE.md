@@ -7,7 +7,7 @@ The automated host/fixture checks do not establish public readiness. Record the 
 On a machine with Windows Sandbox enabled, generate a configuration from the extracted verified package:
 
 ```powershell
-.\scripts\New-DesktopSandbox.ps1 -PackageRoot 'C:\releases\1.0.0-preview.8' -OutputPath 'C:\tests\router-offline.wsb'
+.\scripts\New-DesktopSandbox.ps1 -PackageRoot 'C:\releases\1.0.0-preview.11' -OutputPath 'C:\tests\router-offline.wsb'
 ```
 
 Open that .wsb file. The package appears at `C:\RouterStudioPackage`, read-only; networking and clipboard sharing are disabled. Copy it to a guest-local folder before testing if you need writable extraction. Run Install-Desktop.cmd in the guest, then open `%LOCALAPPDATA%\RouterStudio\Launch-Desktop.vbs`. Verify opening, navigation, theme, missing-setup states, local refresh and ordinary exit without downloads. Do not enter keys. Photograph or record results before closing the disposable guest.

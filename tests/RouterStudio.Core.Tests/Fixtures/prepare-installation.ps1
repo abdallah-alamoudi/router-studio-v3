@@ -2,7 +2,7 @@ param([Parameter(Mandatory)][string]$Destination,[Parameter(Mandatory)][string]$
 $ErrorActionPreference='Stop'
 $root=Join-Path $Destination 'installation';$cp=Join-Path $Destination 'config.toml'
 New-Item $root -ItemType Directory -Force|Out-Null
-foreach($name in @('provider-switch.mjs','model-manager.mjs','route-policy.mjs','probe-engine.mjs','probe-cli.mjs','probe-sse.mjs')){Copy-Item (Join-Path $ProjectRoot ('src/router/'+$name)) $root}
+foreach($name in @('provider-switch.mjs','model-manager.mjs','route-policy.mjs','custom-models.mjs','management.mjs','probe-engine.mjs','probe-cli.mjs','probe-sse.mjs')){Copy-Item (Join-Path $ProjectRoot ('src/router/'+$name)) $root}
 $node=(Get-Command node).Source
 $node|Set-Content (Join-Path $root 'node-path.txt')
 @('model_provider = "safe_8stoken"','model = "deepseek-v4.1-flash"','','[model_providers.safe_8stoken]','base_url = "http://127.0.0.1:18761/v1"','env_key = "SAFE_8STOKEN_LOCAL_TOKEN"','wire_api = "responses"')|Set-Content $cp

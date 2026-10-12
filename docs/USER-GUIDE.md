@@ -48,7 +48,19 @@ Dashboard and Connections refresh locally while visible and idle. Hidden/minimiz
 
 Changing the default connection does not prove account access or move an existing chat to a different provider. Account quotas are not combined.
 
-## 5. Add a key and assign models
+## 5. Manage independent keys and custom models
+
+1. Save work and close Codex. Open **Keys** (Alt+4), then **Independent saved credentials**.
+2. Choose **New credential**, enter a display name (Arabic/spaces supported) and paste the key into the masked field. Review **Save new key** and confirm. The key is encrypted for this Windows user; its identity stays stable if renamed.
+3. Select the saved key and choose **Fetch selected key catalog…**. Confirmation explicitly authorizes an authenticated `/v1/models` request with only that key. Opening a page or selecting a key does not contact the provider. No generation is performed; provider billing and access are not independently verified.
+4. Open **Models & routes** (Alt+3). Choose **New custom model**, select the credential, select an original model from its stored catalog, and enter a display name. Review **Save custom model…** and confirm. The custom ID is stable across edits; it routes to that original model with exactly the selected key.
+5. Start the router explicitly from **Connections**, then reopen Codex. Saved management changes stop only the owned router and leave a restart reminder; they do not force-close or reconfigure Codex. A visible model or healthy local router does not prove provider access.
+
+**Rename** changes only a credential's name. **Rotate** replaces its encrypted key and invalidates its stored catalog and dependent custom-model availability: explicitly fetch again before using those models. **Delete selected key** is refused while a custom model, default route or legacy mapping refers to it. Delete/update those references first. Deleting a custom model retires its ID, so stale requests fail rather than falling back to a different credential. Declared reasoning levels come only from stored catalog metadata, not names or key groups; request effort is not forced by credential selection.
+
+Existing saved PLUS/PRO/FULL and EXTRA slots appear as independent credentials without moving or copying secrets. Reading status does not write the migration; a confirmed management change persists it transactionally. Existing legacy assignments remain usable. The masked key field clears on submission, including cancelled confirmation.
+
+### Legacy key and route assignments
 
 1. Create a key in the intended gateway group first. A label such as CHINESE does not change the key's upstream permissions.
 2. Save work and close Codex. Open **Keys** (Alt+4).

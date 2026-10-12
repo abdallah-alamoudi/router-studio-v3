@@ -47,6 +47,8 @@ switch($mode){
    [IO.File]::WriteAllText((Join-Path $base 'committed.txt'),'recovered')
   }finally{$commit.Dispose()}
  }
+ 'null-credentials' {$good.data.credentials=$null}
+ 'null-custom-models' {$good.data.customModels=$null}
  'null-digest' {$good.data.snapshotDigest=$null}
  'missing' {exit 0}
  'oversized' {[IO.File]::WriteAllText((Join-Path $Job 'result.json'),('x'*(4MB+1)));exit 0}
