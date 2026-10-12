@@ -35,7 +35,7 @@ try {
     if ($Action -eq 'Upgrade') {
         $node = (Get-Content (Join-Path $installRoot 'node-path.txt') -Raw -Encoding UTF8).Trim()
         if (-not (Test-Path (Join-Path $installRoot 'rollback.json'))) { throw 'No existing installation found. Use Install-Desktop.cmd.' }
-        foreach ($file in @('provider-switch.mjs','model-manager.mjs','route-policy.mjs','probe-engine.mjs','probe-cli.mjs','probe-sse.mjs')) { Copy-Item (Join-Path $routerSourceRoot $file) (Join-Path $installRoot $file) -Force }
+        foreach ($file in @('provider-switch.mjs','model-manager.mjs','route-policy.mjs','custom-models.mjs','management.mjs','probe-engine.mjs','probe-cli.mjs','probe-sse.mjs')) { Copy-Item (Join-Path $routerSourceRoot $file) (Join-Path $installRoot $file) -Force }
         foreach ($file in @('run-router.ps1','Studio-Worker.ps1','Studio-Protocol.ps1','Setup.ps1')) { Copy-Item (Join-Path $workerSourceRoot $file) (Join-Path $installRoot $file) -Force }
         $nodeOutput=@(& $node (Join-Path $installRoot 'provider-switch.mjs') init $codexConfig $installRoot 2>&1)
         if ($LASTEXITCODE -ne 0) { throw 'Switcher initialization refused the current configuration. No Codex settings changed.' }
@@ -111,7 +111,7 @@ try {
         $acl.AddAccessRule($rule)
     }
     Set-Acl -LiteralPath $installRoot -AclObject $acl
-    foreach ($file in @('router.mjs','codex-config.mjs','provider-switch.mjs','model-manager.mjs','route-policy.mjs','probe-engine.mjs','probe-cli.mjs','probe-sse.mjs')) { Copy-Item (Join-Path $routerSourceRoot $file) (Join-Path $installRoot $file) -Force }
+    foreach ($file in @('router.mjs','codex-config.mjs','provider-switch.mjs','model-manager.mjs','route-policy.mjs','custom-models.mjs','management.mjs','probe-engine.mjs','probe-cli.mjs','probe-sse.mjs')) { Copy-Item (Join-Path $routerSourceRoot $file) (Join-Path $installRoot $file) -Force }
     foreach ($file in @('run-router.ps1','Studio-Worker.ps1','Studio-Protocol.ps1','Setup.ps1')) { Copy-Item (Join-Path $workerSourceRoot $file) (Join-Path $installRoot $file) -Force }
     Utf8File (Join-Path $installRoot 'node-path.txt') $node
     $secrets | Export-Clixml (Join-Path $installRoot 'secrets.xml')

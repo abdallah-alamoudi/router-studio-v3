@@ -1,6 +1,6 @@
 # Management contract v1
 
-Task 2 supplies the PowerShell management boundary for the future desktop bridge. It does not implement the C# bridge or live model probes.
+The management protocol currently implements legacy key-route assignment and diagnostics. Independent credential/custom-model persistence and desktop management actions are not yet wired; the Node registry and router behavior described below is an implementation slice, not a complete user feature.
 
 ## Requests and results
 
@@ -59,3 +59,30 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File tools/verification/Verify-Desktop.
 ~~~
 
 npm test includes the contract suite on Windows. Windows inventory/process-tree cleanup need normal permissions; restricted agent sandboxes may deny them. Native WPF rendering, full clean-machine installation, public packaging and live providers remain later acceptance work.
+
+
+## Independent credentials and custom-model management
+
+The desktop and worker expose separate credential and custom-model flows. Public config contains `credentials` (`id`, mutable `label`, immutable `keyEnv`, optional stored catalog), `customModels` (`id`, `credentialId`, `originalModel`, `displayLabel`, normalized metadata, availability), and `retiredCustomModelIds`. No secret is returned in snapshots, requests, public metadata or support output. Keys use the existing DPAPI/CLIXML `secrets.xml` path; the job's encrypted input is deleted after processing.
+
+All seven actions require `expectedSnapshotDigest` (lowercase SHA256). Mutation acknowledgement is `ack:true`; catalog contact requires `acknowledgement:true`. Strict allowlists reject unrelated fields. Stable IDs use ASCII identifiers up to 80 characters. Display labels accept trimmed Unicode text, 1–80 characters, without ASCII control characters. Original models must use the existing bounded model-ID syntax.
+
+| Action | Public fields besides digest and acknowledgement | Encrypted secret |
+|---|---|---|
+| `save-credential` | `credentialId`, `label` | Matching `credentialId` and `key`; existing IDs cannot be overwritten |
+| `rotate-credential` | `credentialId` | Matching `credentialId` and replacement `key` |
+| `rename-credential` | `credentialId`, `label` | Not allowed |
+| `delete-credential` | `credentialId` | Not allowed; referenced credentials cannot be deleted |
+| `fetch-credential-catalog` | `credentialId` | Not allowed; loads only this credential's protected key |
+| `save-custom-model` | `customModelId`, `credentialId`, `originalModel`, `displayLabel` | Not allowed; uses selected stored catalog |
+| `delete-custom-model` | `customModelId` | Not allowed; retires ID to prevent raw-route fallback |
+
+The worker rechecks the digest before commit, uses the existing three-file transaction and recovery (`secrets.xml`, router config, Codex catalog), persists restart-required state and stops only its owned router. It does not stop Codex or silently relaunch the router. Restart is explicit through Connections. All seven actions are drained as mutations rather than interrupted during persistence. Catalog fetch sends one bounded authenticated GET `/v1/models` after explicit acknowledgement, without generation or fallback; provider billing/access is not established by this implementation.
+
+Snapshots add `credentials` (identity, label, saved state, catalog timestamp/models) and `customModels` (identity, credential binding, original model, display name, availability, saved state, declared efforts). Explicit null top-level management lists are rejected by the backend. Existing `keys` and `models` remain for legacy compatibility.
+
+Legacy saved slots are adopted conservatively as stable `legacy-*` identities, retaining encrypted slots, default routes and presets. Status computes this registry without writing installation files. The first confirmed independent-management mutation persists adoption through the same transaction. The local-token slot is excluded. Existing registered slots are not duplicated. Legacy key replacement of a registered slot invalidates its catalog and dependent custom models just like explicit rotation.
+
+Custom IDs resolve before legacy routes, use the exact registered credential and never fall back to the default credential if missing, unavailable or retired. Request rewriting changes only the model-ID byte span, preserving the user's selected reasoning effort and other request bytes. Display labels never determine effort. Rotation invalidates stored catalog and dependent availability; explicit catalog refresh can restore models still present in the returned catalog.
+
+`normalizeCatalogResponse` supports the OpenAI-style shape `{data:[{id,...}]}` and copies only known metadata, including explicit `supported_reasoning_levels`. This is a tested code contract, not confirmation of the real 8sToken response or reasoning support. Live provider compatibility, Codex interpretation of generated metadata and clean-machine release acceptance remain unverified.

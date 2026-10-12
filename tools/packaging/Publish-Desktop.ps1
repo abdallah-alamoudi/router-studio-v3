@@ -22,7 +22,7 @@ try {
  foreach($entry in @(@($node,$runtime.node.signer),@($pwsh,$runtime.powershell.signer))){$signature=Get-AuthenticodeSignature -LiteralPath $entry[0];if($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notlike ('*'+$entry[1]+'*')){throw 'Runtime signature verification failed.'}}
  & $dotnet publish (Join-Path $ProjectRoot 'src/RouterStudio.Desktop/RouterStudio.Desktop.csproj') -c Release -r win-x64 --self-contained true '-p:RestoreLockedMode=true' ('-p:RuntimeFrameworkVersion='+$runtime.dotnet.runtime) -o $output
  if($LASTEXITCODE -ne 0){throw 'Self-contained publish failed.'}
- $routerControls=@('router.mjs','codex-config.mjs','provider-switch.mjs','model-manager.mjs','route-policy.mjs','probe-engine.mjs','probe-cli.mjs','probe-sse.mjs')
+ $routerControls=@('router.mjs','codex-config.mjs','provider-switch.mjs','model-manager.mjs','route-policy.mjs','custom-models.mjs','management.mjs','probe-engine.mjs','probe-cli.mjs','probe-sse.mjs')
  $workerControls=@('run-router.ps1','Studio-Worker.ps1','Studio-Protocol.ps1','Setup.ps1')
   foreach($name in $routerControls){Copy-Item -LiteralPath (Join-Path $ProjectRoot ('src/router/'+$name)) -Destination $output}
  foreach($name in $workerControls){Copy-Item -LiteralPath (Join-Path $ProjectRoot ('src/worker/'+$name)) -Destination $output}
@@ -41,7 +41,7 @@ try {
   @('system.security.cryptography.protecteddata',$runtime.dotnet.runtime,'THIRD-PARTY-NOTICES.TXT','protected-data'),
   @('system.security.cryptography.protecteddata',$runtime.dotnet.runtime,'system.security.cryptography.protecteddata.nuspec','protected-data'))
  foreach($entry in $licenses){$directory=Join-Path $output ('licenses/'+$entry[3]);New-Item -ItemType Directory -Path $directory -Force|Out-Null;Copy-Item -LiteralPath (Join-Path $ProjectRoot ('.tools/nuget-packages/'+$entry[0]+'/'+$entry[1]+'/'+$entry[2])) -Destination $directory}
- foreach($name in @('DESKTOP-INSTALLATION.md','RELEASE-CHECKLIST.md','TASKS-8-12-RESULTS.md','USER-GUIDE.md','RELEASE-ACCEPTANCE.md','DESKTOP-ACCEPTANCE-RESULTS.md')){Copy-Item -LiteralPath (Join-Path $ProjectRoot ('docs/'+$name)) -Destination $output}
+ foreach($name in @('DESKTOP-INSTALLATION.md','RELEASE-CHECKLIST.md','TASKS-8-12-RESULTS.md','USER-GUIDE.md','MANAGEMENT-CONTRACT.md','RELEASE-ACCEPTANCE.md','DESKTOP-ACCEPTANCE-RESULTS.md')){Copy-Item -LiteralPath (Join-Path $ProjectRoot ('docs/'+$name)) -Destination $output}
  WriteDesktopManifest $output $Version
  [void](TestDesktopManifest $output)
  $zip=$output+'.zip';Compress-Archive -LiteralPath $output -DestinationPath $zip

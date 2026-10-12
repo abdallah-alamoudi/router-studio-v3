@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import {timingSafeEqual} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {selectRoute} from './route-policy.mjs';
+import {validateRegistry} from './custom-models.mjs';
 
 // Walk JSON syntax to obtain text spans. Values are never reserialized.
 function spans(text){
@@ -28,13 +29,13 @@ function spans(text){
   }
   return value();
 }
-export function rewrite(body,aliases,modelRoutes={}){
+export function rewrite(body,aliases,modelRoutes={},registry={}){
   if(!body.length)return {body};
   const text=new TextDecoder('utf-8',{fatal:true}).decode(body);const root=spans(text);
   const model=root.members?.get('model');if(!model)return {body};
   const name=JSON.parse(text.slice(model.start,model.end));
-  const selection=selectRoute({aliases,modelRoutes},name);
-  const preset=Object.hasOwn(aliases,name)?aliases[name]:undefined;if(!preset)return {body,keyEnv:selection.keyEnv};
+  const selection=selectRoute({...registry,aliases,modelRoutes},name);
+  const preset=selection.kind==='Custom model'?{model:selection.resolvedModel}:Object.hasOwn(aliases,name)?aliases[name]:undefined;if(!preset)return {body,keyEnv:selection.keyEnv};
   const edits=[[model.start,model.end,JSON.stringify(preset.model)]];
   if(preset.effort){
     const reasoning=root.members.get('reasoning');
@@ -52,6 +53,7 @@ const HOP=new Set(['connection','keep-alive','proxy-authenticate','proxy-authori
 function clean(headers){const deny=new Set([...HOP,...String(headers.connection||'').toLowerCase().split(',').map(s=>s.trim())]);return Object.fromEntries(Object.entries(headers).filter(([k])=>!deny.has(k)));}
 function secretEqual(a,b){const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y);}
 export function createRouter(config,env=process.env){
+  if(Array.isArray(config.credentials)||Array.isArray(config.customModels))validateRegistry(config);
   const target=new URL(config.upstream);
   if((target.protocol!=='https:'&&!(config.allowHttpForTests&&target.protocol==='http:'&&target.hostname==='127.0.0.1'))||target.username||target.password||target.pathname!=='/'||target.search||target.hash)throw Error('Upstream must be a fixed HTTPS origin');
   const token=env[config.localTokenEnv];if(!token||token.length<8)throw Error('Missing local authentication token');
@@ -69,7 +71,7 @@ export function createRouter(config,env=process.env){
       let size=0,chunks=[];
       for await(const chunk of req){size+=chunk.length;if(size>max)return fail(413,'Request exceeds configured body limit');chunks.push(chunk);}
       let body=Buffer.concat(chunks);let keyEnv=config.defaultKeyEnv;
-      if(body.length&&(/application\/(?:[\w.-]+\+)?json/i.test(req.headers['content-type']||'')||/^\/v1\/responses(?:[/?]|$)/.test(req.url))){const changed=rewrite(body,config.aliases??{},config.modelRoutes??{});body=changed.body;keyEnv=changed.keyEnv??keyEnv;}
+      if(body.length&&(/application\/(?:[\w.-]+\+)?json/i.test(req.headers['content-type']||'')||/^\/v1\/responses(?:[/?]|$)/.test(req.url))){const changed=rewrite(body,config.aliases??{},config.modelRoutes??{},config);body=changed.body;keyEnv=changed.keyEnv??keyEnv;}
       const key=env[keyEnv];if(!key)return fail(503,'Selected route credential has not been configured');
       const headers=clean(req.headers);delete headers.host;delete headers['content-length'];delete headers.expect;
       headers.authorization=`Bearer ${key}`;
@@ -84,7 +86,7 @@ export function createRouter(config,env=process.env){
       outgoing.on('error',()=>fail(502,'Upstream transport failed; request was not replayed'));
       res.on('close',()=>{if(!res.writableFinished)outgoing.destroy();});
       outgoing.end(body);
-    }catch{if(outgoing)outgoing.destroy();fail(400,'Invalid or unsupported request body');}
+    }catch(error){if(outgoing)outgoing.destroy();if(['credential_missing','unsupported_capability'].includes(error.code))fail(503,'Selected custom model is unavailable or its credential is missing');else fail(400,'Invalid or unsupported request body');}
   });
   server.requestTimeout=300000;server.headersTimeout=30000;
   server.on('upgrade',(req,socket)=>socket.end('HTTP/1.1 501 Not Implemented\r\nConnection: close\r\nContent-Length: 0\r\n\r\n'));

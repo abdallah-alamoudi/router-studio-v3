@@ -3,7 +3,7 @@ Set-StrictMode -Version 3
 $ErrorActionPreference='Stop'
 function DesktopSid { return [Security.Principal.WindowsIdentity]::GetCurrent().User.Value }
 function DesktopScope($DataRoot,[switch]$Fixture){if(-not $Fixture){return $env:USERNAME};$sha=[Security.Cryptography.SHA256]::Create();try{return [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($DataRoot))).Replace('-','')}finally{$sha.Dispose()}}
-function DesktopHash($path) { return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() }
+function DesktopHash($path) { $sha=[Security.Cryptography.SHA256]::Create();try{$stream=[IO.File]::OpenRead($path);try{return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','').ToLowerInvariant()}finally{$stream.Dispose()}}finally{$sha.Dispose()} }
 function DesktopReplace($temporary,$target){if(Test-Path -LiteralPath $target){[IO.File]::Replace($temporary,$target,[NullString]::Value)}else{[IO.File]::Move($temporary,$target)}}
 function DesktopCopy($source,$target){$temporary=$target+'.tmp-'+[guid]::NewGuid().ToString('N');try{Copy-Item -LiteralPath $source -Destination $temporary;DesktopReplace $temporary $target}finally{if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary -Force}}}
 function DesktopText($target,$text,$encoding){$temporary=$target+'.tmp-'+[guid]::NewGuid().ToString('N');try{[IO.File]::WriteAllText($temporary,$text,$encoding);DesktopReplace $temporary $target}finally{if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary -Force}}}
@@ -117,7 +117,7 @@ function InstallDesktopPayload($PackageRoot,$AppRoot,$DataRoot,[switch]$Acknowle
             [void](TestDesktopManifest $staging -Fixture:$Fixture)
             Move-Item -LiteralPath $staging -Destination $release
         }
-        $controlNames=@('router.mjs','codex-config.mjs','provider-switch.mjs','model-manager.mjs','route-policy.mjs','probe-engine.mjs','probe-cli.mjs','probe-sse.mjs','run-router.ps1','Studio-Worker.ps1','Studio-Protocol.ps1','Setup.ps1')
+        $controlNames=@('router.mjs','codex-config.mjs','provider-switch.mjs','model-manager.mjs','route-policy.mjs','custom-models.mjs','management.mjs','probe-engine.mjs','probe-cli.mjs','probe-sse.mjs','run-router.ps1','Studio-Worker.ps1','Studio-Protocol.ps1','Setup.ps1')
         $transaction='upgrade/'+[guid]::NewGuid().ToString('N');New-Item -ItemType Directory -Path (Join-Path $AppRoot $transaction) -Force|Out-Null
         $recordPath=DesktopSafePath $AppRoot 'install-record.json';$original=@{}
         if(Test-Path -LiteralPath $recordPath){foreach($item in (Get-Content -LiteralPath $recordPath -Raw -Encoding UTF8|ConvertFrom-Json).controls){$original[$item.name]=$item}}

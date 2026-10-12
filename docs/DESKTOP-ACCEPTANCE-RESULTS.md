@@ -14,7 +14,7 @@ This pass fixes five reproduced defects and documents everyday use. Channel rema
 
 ## Evidence
 
-Evidence folder: `.superpowers/sdd/2026-10-09-desktop-acceptance/`. RED failures are retained separately from passing checks. The original verified preview.7 remains available as baseline evidence. The follow-up package is `artifacts/desktop/win-x64/1.0.0-preview.8.zip`; use it only with the recorded package-validation result and adjacent SHA256.
+Evidence folder: `.superpowers/sdd/2026-10-09-desktop-acceptance/`. RED failures are retained separately from passing checks. The original verified preview.7 remains available as baseline evidence. Preview.8 is historical and predates independent key/custom-model management. The current feature-bearing unsigned preview and its validation are recorded in the final section below; do not install an artifact without its adjacent checksum and validation report.
 
 The fresh full verifier exited 0. Windows PowerShell 5.1 migration also passed separately.
 
@@ -44,8 +44,14 @@ The second-user regressions exercise helper verdicts under the current account; 
 
 Follow RELEASE-ACCEPTANCE.md for the external gates. Do not describe this artifact as signed or public-ready.
 
-## Final archive verification (recorded after build)
+## Historical archive verification — preview.8 (2026-10-09)
 
 Publisher exited 0. Final preview.8 package validation passed **16/16**, including self-contained open/second-instance/normal close in an isolated empty root with runtime PATH removed. The bundled private PowerShell and Node also passed **13/13** isolated worker checks. This is host fixture evidence, not clean-machine acceptance.
 
 ZIP size: 222,039,348 bytes. SHA256: `4ac4f28cbc88bd75c08bb5a33a4e7fe226aada38fa255096115b26a5a9153337`. Its `.zip.sha256` and `.zip.validation.txt` files are adjacent to the archive. The source version of this report includes post-build results; the immutable packaged copy directs readers to the separate validation report. The archive was not modified after validation.
+
+## Independent keys and Custom Models — preview.11 (2026-10-12)
+
+The feature-bearing package is an unsigned offline preview built from the current local feature branch. It contains the independent saved-credential and Custom Model UI/worker/router flows, updated user guide and management contract. See the adjacent `1.0.0-preview.11.zip.validation.txt` and `.zip.sha256` for package-specific evidence and identity. Full source verification on 2026-10-12: Node 140/140, Core 97/97, native WPF acceptance 108 checks, Windows PowerShell 5.1 installer entrypoints 22 checks, migration fixtures 31 checks, current-user DPAPI 21 checks, isolated worker integration 13 assertions; `Verify-Desktop.ps1 -RequireIntegration` exited 0. Package validation passed 18 checks, including extracted manifest verification, runtime signatures/versions, required management modules/docs, hash check and isolated open/second-instance/normal-close without runtime PATH. Port 18761 was occupied and preserved; isolated worker integration passed on an OS-assigned port.
+
+This is not a signed/public final release. Clean-machine/standard-user install, real second-account DPAPI test, physical accessibility/DPI, Windows 10, live provider compatibility and paid generation were not tested. No real credentials or Codex configuration changes were used, and no installation/publication was performed.

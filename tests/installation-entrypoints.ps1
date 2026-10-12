@@ -9,7 +9,7 @@ function Package($version){
  New-Item -ItemType Directory -Force -Path (Join-Path $package 'scripts'),(Join-Path $package 'runtime/node'),(Join-Path $package 'runtime/powershell')|Out-Null
  Copy-Item -LiteralPath (Join-Path $ProjectRoot 'tools/packaging/Desktop-Package.ps1') -Destination (Join-Path $package 'scripts')
  foreach($name in @('Install-Desktop.ps1','Uninstall-Desktop.ps1','Launch-Installed.ps1')){Copy-Item -LiteralPath (Join-Path $ProjectRoot ('tools/installation/'+$name)) -Destination (Join-Path $package 'scripts')}
- foreach($name in @('RouterStudio.Desktop.exe','router.mjs','runtime/node/node.exe','runtime/node/LICENSE','runtime/powershell/pwsh.exe','runtime/powershell/LICENSE.txt','runtime-manifest.json','Studio-Worker.ps1','Setup.ps1','codex-config.mjs','provider-switch.mjs','model-manager.mjs','route-policy.mjs','probe-engine.mjs','probe-cli.mjs','probe-sse.mjs','run-router.ps1','Studio-Protocol.ps1')){[IO.File]::WriteAllText((Join-Path $package $name),'synthetic payload '+$version)}
+ foreach($name in @('RouterStudio.Desktop.exe','router.mjs','runtime/node/node.exe','runtime/node/LICENSE','runtime/powershell/pwsh.exe','runtime/powershell/LICENSE.txt','runtime-manifest.json','Studio-Worker.ps1','Setup.ps1','codex-config.mjs','provider-switch.mjs','model-manager.mjs','route-policy.mjs','custom-models.mjs','management.mjs','probe-engine.mjs','probe-cli.mjs','probe-sse.mjs','run-router.ps1','Studio-Protocol.ps1')){[IO.File]::WriteAllText((Join-Path $package $name),'synthetic payload '+$version)}
  WriteDesktopManifest $package $version
  return $package
 }

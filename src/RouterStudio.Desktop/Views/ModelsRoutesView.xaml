@@ -3,6 +3,24 @@
   <TextBlock Text="Models &amp; routes" Style="{StaticResource PageHeading}"/>
   <TextBlock Text="Read catalog declarations and see which saved key label each route uses. Upstream access remains untested." Style="{StaticResource Subtitle}"/>
   <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="Custom models" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+   <TextBlock Text="Select a saved key, fetch its catalog explicitly from Keys, then select the original model and choose a display name. Reasoning effort is never inferred from the key or label." TextWrapping="Wrap" Margin="0,0,0,12"/>
+   <ListBox x:Name="CustomModelList" ItemsSource="{Binding CustomModels.Items}" SelectedItem="{Binding CustomModels.Selected}" IsEnabled="{Binding CustomModels.CanManage}" MaxHeight="180" AutomationProperties.Name="Saved custom models" Margin="0,0,0,12">
+    <ListBox.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding DisplayLabel}" FontWeight="SemiBold"/><TextBlock Text="{Binding OriginalModel}"/><TextBlock Text="{Binding Availability}"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
+   </ListBox>
+   <TextBlock Text="Saved credential"/>
+   <ComboBox ItemsSource="{Binding CustomModels.Credentials}" SelectedItem="{Binding CustomModels.SelectedCredential}" DisplayMemberPath="Label" IsEnabled="{Binding CustomModels.CanManage}" AutomationProperties.Name="Custom model credential" Margin="0,8,0,12"/>
+   <TextBlock Text="Original model from the selected credential's stored catalog"/>
+   <ComboBox ItemsSource="{Binding CustomModels.OriginalModels}" SelectedItem="{Binding CustomModels.SelectedOriginal}" DisplayMemberPath="Id" IsEnabled="{Binding CustomModels.CanManage}" AutomationProperties.Name="Original provider model" Margin="0,8,0,12"/>
+   <TextBlock Text="Display name"/>
+   <TextBox Text="{Binding CustomModels.DisplayLabel,UpdateSourceTrigger=PropertyChanged}" MaxLength="80" IsEnabled="{Binding CustomModels.CanManage}" AutomationProperties.Name="Custom model display name" Margin="0,8,0,12"/>
+   <WrapPanel>
+    <Button Content="New custom model" Click="NewCustomModel" IsEnabled="{Binding CustomModels.CanManage}" Margin="0,0,8,8"/>
+    <Button Content="Save custom model…" Click="SaveCustomModel" IsEnabled="{Binding CustomModels.CanSave}" Margin="0,0,8,8"/>
+    <Button Content="Delete selected model…" Click="DeleteCustomModel" IsEnabled="{Binding CustomModels.CanDelete}" Margin="0,0,8,8"/>
+   </WrapPanel>
+  </StackPanel></Border>
+  <Border Style="{StaticResource Card}"><StackPanel>
    <TextBlock Text="Search model ID, name or credential label" Margin="0,0,0,8"/>
    <TextBox x:Name="ModelSearch" Text="{Binding ModelsRoutes.Search,UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search models" Margin="0,0,0,16"/>
    <ComboBox x:Name="ModelFilter" ItemsSource="{Binding ModelsRoutes.Filters}" SelectedItem="{Binding ModelsRoutes.Filter}" AutomationProperties.Name="Model filter" HorizontalAlignment="Left" MinWidth="160" Margin="0,0,0,16"/>

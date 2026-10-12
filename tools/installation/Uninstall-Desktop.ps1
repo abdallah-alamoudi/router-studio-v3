@@ -1,7 +1,8 @@
 param([switch]$Acknowledge,[switch]$RemoveRecoveryFiles)
 $ErrorActionPreference='Stop'
 if(-not $Acknowledge){throw 'Use -Acknowledge after closing Studio and stopping its router. Keys and settings will be retained.'}
-. (if(Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Desktop-Package.ps1')){Join-Path $PSScriptRoot 'Desktop-Package.ps1'}else{Join-Path (Split-Path $PSScriptRoot -Parent) 'packaging/Desktop-Package.ps1'})
+$packageHelper=if(Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Desktop-Package.ps1')){Join-Path $PSScriptRoot 'Desktop-Package.ps1'}else{Join-Path (Split-Path $PSScriptRoot -Parent) 'packaging/Desktop-Package.ps1'}
+. $packageHelper
 $app=Join-Path $env:LOCALAPPDATA 'RouterStudio';$data=Join-Path $env:LOCALAPPDATA 'Safe8stokenRouter'
 foreach($process in Get-CimInstance Win32_Process -Filter "Name='RouterStudio.Desktop.exe' OR Name='node.exe'"){if(($process.ExecutablePath -and $process.ExecutablePath.StartsWith($app+'\',[StringComparison]::OrdinalIgnoreCase)) -or ($process.CommandLine -and $process.CommandLine.Contains((Join-Path $data 'router.mjs')))){throw 'Close Studio and stop its router before uninstalling.'}}
 RemoveDesktopPayload $app $data

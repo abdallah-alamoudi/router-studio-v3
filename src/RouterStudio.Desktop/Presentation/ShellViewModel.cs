@@ -10,6 +10,8 @@ public sealed class ShellViewModel : ObservableObject {
  public ConnectionsViewModel Connections {get;}=new();
  public ModelsRoutesViewModel ModelsRoutes {get;}=new();
  public KeysViewModel Keys {get;}
+ public SavedCredentialsViewModel SavedCredentials {get;}
+ public CustomModelsViewModel CustomModels {get;}
  public BackupsViewModel Backups {get;}
  public TestLabViewModel TestLab {get;}
  public SettingsViewModel Settings{get;private set;}
@@ -44,6 +46,8 @@ public sealed class ShellViewModel : ObservableObject {
   Dashboard.Update(DashboardComposer.Compose(snapshot,lastProbe,statusOutdated));
   Connections.Update(snapshot,snapshot is not null && !statusOutdated && !snapshot.Connection.ReviewNeeded && !IsBusy&&!IsExiting);
   ModelsRoutes.Update(snapshot?.Models??[]);
+  SavedCredentials.Update(snapshot,StatusAvailable && !snapshot!.Connection.ReviewNeeded);
+  CustomModels.Update(snapshot,StatusAvailable && !snapshot!.Connection.ReviewNeeded);
   Keys.Update(snapshot,StatusAvailable && !snapshot!.Connection.ReviewNeeded);
   Backups.Update(snapshot,StatusAvailable);
   TestLab.Update(snapshot,StatusAvailable);
@@ -60,7 +64,7 @@ public sealed class ShellViewModel : ObservableObject {
  public ShellViewModel(IStudioBackend backend,HistoryStore? history=null) {
   this.backend=backend;
   this.history=history;
-  Keys=new(this);Backups=new(this);TestLab=new(this);Settings=new(this);
+  SavedCredentials=new(this);CustomModels=new(this);Keys=new(this);Backups=new(this);TestLab=new(this);Settings=new(this);
   RefreshCommand=new(RefreshAsync,()=>!IsBusy&&!IsExiting);
   NavigateCommand=new(p=>{ if(p is StudioPage page) Navigate(page); });
   DiagnosticsCommand=new(_=>DiagnosticsOpen=!DiagnosticsOpen);
@@ -105,7 +109,7 @@ public sealed class ShellViewModel : ObservableObject {
   if(IsBusy||IsExiting) return StudioResult.Failure("busy"); IsBusy=true; ErrorMessage=null;
   // A mutation can commit before a later status/startup failure. Do not retain verification during it.
   if(mutation){statusOutdated=true;UpdateState();}
-  if(mutation && request.Action is "official" or "router" or "restore" or "save-key" or "start") CodexRestartRequired=true;
+  if(mutation && request.Action is "official" or "router" or "restore" or "save-key" or "start" or "save-credential" or "rotate-credential" or "rename-credential" or "delete-credential" or "fetch-credential-catalog" or "save-custom-model" or "delete-custom-model") CodexRestartRequired=true;
   try { var result=await backend.ExecuteAsync(request,secret,ct);
    if(mutation&&ProbeCodec.Digest(SnapshotDigest))history?.AppendAction(request.Action,result.Ok,SnapshotDigest);
    if(!result.Ok) Fail(result.Error?.Code ?? "operation_failed");

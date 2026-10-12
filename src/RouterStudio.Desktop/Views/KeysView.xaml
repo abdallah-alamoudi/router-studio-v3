@@ -3,6 +3,24 @@
   <TextBlock Text="Keys &amp; assignments" Style="{StaticResource PageHeading}"/>
   <TextBlock Text="Create the key with its intended group in 8stoken first. Labels here name saved credentials; they do not grant gateway permissions." Style="{StaticResource Subtitle}"/>
   <Border Style="{StaticResource Card}"><StackPanel>
+   <TextBlock Text="Independent saved credentials" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+   <TextBlock Text="Save keys separately from model assignments. Names can change; identity stays the same. Legacy assignments below remain available." TextWrapping="Wrap" Margin="0,0,0,12"/>
+   <ListBox x:Name="SavedCredentialList" ItemsSource="{Binding SavedCredentials.Items}" SelectedItem="{Binding SavedCredentials.Selected}" DisplayMemberPath="Label" IsEnabled="{Binding SavedCredentials.CanManage}" MaxHeight="180" AutomationProperties.Name="Independent saved credentials" Margin="0,0,0,12"/>
+   <TextBlock Text="Display name (up to 80 characters)"/>
+   <TextBox Text="{Binding SavedCredentials.Label,UpdateSourceTrigger=PropertyChanged}" MaxLength="80" IsEnabled="{Binding SavedCredentials.CanManage}" AutomationProperties.Name="Saved credential display name" Margin="0,8,0,12"/>
+   <TextBlock Text="New or replacement key (masked; cleared on submission)"/>
+   <PasswordBox x:Name="IndependentKeyPassword" IsEnabled="{Binding SavedCredentials.CanManage}" AutomationProperties.Name="Independent credential API key" Margin="0,8,0,12"/>
+   <WrapPanel>
+    <Button Content="New credential" Click="NewCredential" IsEnabled="{Binding SavedCredentials.CanManage}" Margin="0,0,8,8"/>
+    <Button Content="Save new key" Click="SaveCredential" IsEnabled="{Binding SavedCredentials.CanManage}" Margin="0,0,8,8"/>
+    <Button Content="Rename selected" Click="RenameCredential" IsEnabled="{Binding SavedCredentials.CanEdit}" Margin="0,0,8,8"/>
+    <Button Content="Rotate selected key" Click="RotateCredential" IsEnabled="{Binding SavedCredentials.CanEdit}" Margin="0,0,8,8"/>
+    <Button Content="Delete selected key" Click="DeleteCredential" IsEnabled="{Binding SavedCredentials.CanEdit}" Margin="0,0,8,8"/>
+    <Button Content="Fetch selected key catalog…" Click="FetchCredentialCatalog" IsEnabled="{Binding SavedCredentials.CanEdit}" Margin="0,0,8,8"/>
+   </WrapPanel>
+   <TextBlock Text="Catalog fetch contacts 8stoken only after confirmation. Key rotation invalidates its catalog and disables dependent custom models until an explicit refresh. Deletes are refused while references exist. Saved changes stop the owned router; use Connections to restart it explicitly." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/>
+  </StackPanel></Border>
+  <Border Style="{StaticResource Card}"><StackPanel>
    <TextBlock Text="Saved labels and catalog references" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
    <TextBlock Text="{Binding Keys.References}" TextWrapping="Wrap"/>
   </StackPanel></Border>
